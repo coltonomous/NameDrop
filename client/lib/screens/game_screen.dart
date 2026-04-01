@@ -59,7 +59,6 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      ),
       body: Column(
         children: [
           LinearProgressIndicator(

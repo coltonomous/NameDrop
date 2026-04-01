@@ -17,22 +17,33 @@ class GameBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gridSize = gameState.gridSize;
-    // +1 for axis label row/column
     final totalSize = gridSize + 1;
 
-    return AspectRatio(
-      aspectRatio: 1.0,
-      child: Column(
-        children: List.generate(totalSize, (rowIndex) {
-          return Expanded(
-            child: Row(
-              children: List.generate(totalSize, (colIndex) {
-                return Expanded(child: _buildCell(rowIndex, colIndex));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Square board sized to fit the smaller dimension.
+        final boardSize = constraints.maxWidth < constraints.maxHeight
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+
+        return Center(
+          child: SizedBox(
+            width: boardSize,
+            height: boardSize,
+            child: Column(
+              children: List.generate(totalSize, (rowIndex) {
+                return Expanded(
+                  child: Row(
+                    children: List.generate(totalSize, (colIndex) {
+                      return Expanded(child: _buildCell(rowIndex, colIndex));
+                    }),
+                  ),
+                );
               }),
             ),
-          );
-        }),
-      ),
+          ),
+        );
+      },
     );
   }
 

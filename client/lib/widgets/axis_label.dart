@@ -10,17 +10,20 @@ class AxisLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(
-        letter,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontSize: 28,
-              shadows: [
-                Shadow(
-                  color: NameDropTheme.gold.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          letter,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontSize: 28,
+                shadows: [
+                  Shadow(
+                    color: NameDropTheme.gold.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+        ),
       ),
     );
   }

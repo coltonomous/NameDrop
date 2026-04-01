@@ -167,7 +167,7 @@ class _CellInputDialogState extends State<CellInputDialog>
 
     setState(() => _isValidating = true);
 
-    final celebrity = await widget.service.validate(
+    final result = await widget.service.validate(
       text,
       widget.slot.requiredFirstInitial,
       widget.slot.requiredLastInitial,
@@ -175,16 +175,14 @@ class _CellInputDialogState extends State<CellInputDialog>
 
     if (!mounted) return;
 
-    if (celebrity != null) {
-      Navigator.of(context).pop(CellInputAnswer(celebrity));
+    if (result.isSuccess) {
+      Navigator.of(context).pop(CellInputAnswer(result.celebrity!));
     } else {
       setState(() {
         _isValidating = false;
+        _errorText = result.error;
       });
       _shakeController.forward(from: 0);
-      setState(() {
-        _errorText = "We don't know that one — try someone else";
-      });
     }
   }
 }

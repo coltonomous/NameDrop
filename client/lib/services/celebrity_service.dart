@@ -5,6 +5,16 @@ import 'package:http/http.dart' as http;
 
 import '../models/celebrity.dart';
 
+class ValidationResult {
+  final Celebrity? celebrity;
+  final String? error;
+
+  const ValidationResult.success(this.celebrity) : error = null;
+  const ValidationResult.failure(this.error) : celebrity = null;
+
+  bool get isSuccess => celebrity != null;
+}
+
 class CelebrityService {
   final List<Celebrity> _celebrities = [];
   final Map<String, List<Celebrity>> _index = {};
@@ -33,19 +43,45 @@ class CelebrityService {
   }
 
   /// Validate a name: try Wikipedia first (for wiki link), then local DB.
-  Future<Celebrity?> validate(
+  Future<ValidationResult> validate(
       String name, String firstInitial, String lastInitial) async {
-    if (name.trim().isEmpty) return null;
+    final sanitized = _sanitize(name);
+    if (sanitized.isEmpty) {
+      return const ValidationResult.failure('Enter a first and last name');
+    }
+
+    final parts = sanitized.split(' ');
+    if (parts.length < 2) {
+      return const ValidationResult.failure(
+          'Enter a first and last name');
+    }
+
+    // Check initials match before doing any lookups.
+    final inputFirst = parts.first[0].toUpperCase();
+    final inputLast = parts.last[0].toUpperCase();
+
+    if (inputFirst != firstInitial && inputLast != lastInitial) {
+      return ValidationResult.failure(
+          'Initials are $inputFirst.$inputLast. — need $firstInitial.$lastInitial.');
+    }
+    if (inputFirst != firstInitial) {
+      return ValidationResult.failure(
+          'First name starts with $inputFirst, need $firstInitial');
+    }
+    if (inputLast != lastInitial) {
+      return ValidationResult.failure(
+          'Last name starts with $inputLast, need $lastInitial');
+    }
 
     // Try Wikipedia first so we always get a wiki link when online.
     final wiki = await _validateWikipedia(name, firstInitial, lastInitial);
-    if (wiki != null) return wiki;
+    if (wiki != null) return ValidationResult.success(wiki);
 
     // Fall back to local DB, with an optimistic wiki URL.
     final local = _validateLocal(name, firstInitial, lastInitial);
     if (local != null) {
       final slug = _buildSlug(local.name);
-      return Celebrity(
+      return ValidationResult.success(Celebrity(
         name: local.name,
         firstInitial: local.firstInitial,
         lastInitial: local.lastInitial,
@@ -53,9 +89,16 @@ class CelebrityService {
         birthYear: local.birthYear,
         hpi: local.hpi,
         wikiUrl: 'https://en.wikipedia.org/wiki/$slug',
-      );
+      ));
     }
-    return null;
+
+    if (parts.length > 2) {
+      return ValidationResult.failure(
+          "We match first and last name only — try '${parts.first} ${parts.last}'");
+    }
+
+    return const ValidationResult.failure(
+        "We don't know that one — try someone else");
   }
 
   /// Normalized exact match: lowercase, strip diacritics and punctuation.

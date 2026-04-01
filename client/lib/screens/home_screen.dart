@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
+import '../theme.dart';
 import 'game_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,50 +22,91 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // Title with glow effect
                 Text(
-                  'NameDrop',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  'NAMEDROP',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        shadows: [
+                          Shadow(
+                            color: NameDropTheme.gold.withValues(alpha: 0.6),
+                            blurRadius: 24,
+                          ),
+                        ],
                       ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  'Celebrity Initials Game',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  'THE CELEBRITY INITIALS GAME',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        letterSpacing: 3,
                       ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 56),
                 Text(
-                  'Grid Size',
+                  'GRID SIZE',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: 12),
-                SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 3, label: Text('3×3')),
-                    ButtonSegment(value: 4, label: Text('4×4')),
-                    ButtonSegment(value: 5, label: Text('5×5')),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _gridButton(3, '3x3'),
+                    const SizedBox(width: 12),
+                    _gridButton(4, '4x4'),
+                    const SizedBox(width: 12),
+                    _gridButton(5, '5x5'),
                   ],
-                  selected: {_gridSize},
-                  onSelectionChanged: (value) {
-                    setState(() => _gridSize = value.first);
-                  },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
                 FilledButton.icon(
                   onPressed: _startGame,
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('New Game'),
+                  label: const Text('NEW GAME'),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _gridButton(int size, String label) {
+    final selected = _gridSize == size;
+    return GestureDetector(
+      onTap: () => setState(() => _gridSize = size),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: selected ? NameDropTheme.gold : NameDropTheme.panelBlue,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? NameDropTheme.gold : NameDropTheme.dimGold,
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: NameDropTheme.gold.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                  )
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: selected ? NameDropTheme.navy : NameDropTheme.cream,
+                ),
           ),
         ),
       ),

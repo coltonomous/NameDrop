@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class AxisLabel extends StatelessWidget {
   final String letter;
 
@@ -11,7 +13,13 @@ class AxisLabel extends StatelessWidget {
       child: Text(
         letter,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontSize: 28,
+              shadows: [
+                Shadow(
+                  color: NameDropTheme.gold.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                ),
+              ],
             ),
       ),
     );

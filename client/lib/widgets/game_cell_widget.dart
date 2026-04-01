@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/game_cell.dart';
+import '../theme.dart';
 
 class GameCellWidget extends StatelessWidget {
   final GameCell cell;
@@ -10,29 +11,26 @@ class GameCellWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    Color backgroundColor;
+    BoxDecoration decoration;
     switch (cell.status) {
       case CellStatus.complete:
-        backgroundColor = colorScheme.primaryContainer;
+        decoration = NameDropTheme.completedPanelDecoration;
       case CellStatus.partial:
-        backgroundColor = colorScheme.tertiaryContainer;
+        decoration = NameDropTheme.partialPanelDecoration;
       case CellStatus.free:
-        backgroundColor = colorScheme.surfaceContainerHighest;
+        decoration = NameDropTheme.freePanelDecoration;
       case CellStatus.empty:
-        backgroundColor = colorScheme.surface;
+        decoration = NameDropTheme.panelDecoration;
     }
 
     return GestureDetector(
-      onTap: cell.status == CellStatus.free || cell.status == CellStatus.complete
+      onTap: cell.status == CellStatus.free ||
+              cell.status == CellStatus.complete
           ? null
           : onTap,
       child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          border: Border.all(color: colorScheme.outlineVariant, width: 0.5),
-        ),
+        margin: const EdgeInsets.all(2),
+        decoration: decoration,
         padding: const EdgeInsets.all(4),
         child: _buildContent(context),
       ),
@@ -40,31 +38,38 @@ class GameCellWidget extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     if (cell.isFree) {
-      return const Center(
-        child: Icon(Icons.star_rounded, size: 20, color: Colors.amber),
+      return Center(
+        child: Icon(Icons.star_rounded, size: 20, color: NameDropTheme.gold.withValues(alpha: 0.4)),
       );
     }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildSlotDisplay(context, cell.slotA, textTheme),
-        const Divider(height: 4, thickness: 0.5),
-        _buildSlotDisplay(context, cell.slotB, textTheme),
+        _buildSlotDisplay(context, cell.slotA),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Divider(
+            height: 4,
+            thickness: 0.5,
+            color: NameDropTheme.gold.withValues(alpha: 0.3),
+          ),
+        ),
+        _buildSlotDisplay(context, cell.slotB),
       ],
     );
   }
 
-  Widget _buildSlotDisplay(
-      BuildContext context, CellSlot slot, TextTheme textTheme) {
+  Widget _buildSlotDisplay(BuildContext context, CellSlot slot) {
     if (slot.isFilled) {
       return Flexible(
         child: Text(
           slot.answer!.name,
-          style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -75,9 +80,10 @@ class GameCellWidget extends StatelessWidget {
     return Flexible(
       child: Text(
         slot.label,
-        style: textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: NameDropTheme.dimGold,
+              fontWeight: FontWeight.w500,
+            ),
         textAlign: TextAlign.center,
       ),
     );

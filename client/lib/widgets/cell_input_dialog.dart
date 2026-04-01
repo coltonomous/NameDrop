@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/game_cell.dart';
 import '../services/celebrity_service.dart';
+import '../theme.dart';
 
 class CellInputDialog extends StatefulWidget {
   final CellSlot slot;
@@ -44,27 +45,26 @@ class _CellInputDialogState extends State<CellInputDialog> {
         children: [
           Text(
             'Name someone: ${slot.label}',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 4),
           Text(
             'First name starts with ${slot.requiredFirstInitial}, '
             'last name starts with ${slot.requiredLastInitial}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
             autofocus: true,
             textCapitalization: TextCapitalization.words,
+            style: Theme.of(context).textTheme.bodyLarge,
+            cursorColor: NameDropTheme.gold,
             decoration: InputDecoration(
               hintText: 'Type a celebrity name...',
               errorText: _errorText,
-              border: const OutlineInputBorder(),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.send),
+                icon: const Icon(Icons.send, color: NameDropTheme.gold),
                 onPressed: _submit,
               ),
             ),

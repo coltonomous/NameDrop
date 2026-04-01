@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/game_state.dart';
+import '../theme.dart';
 
 class ResultsScreen extends StatelessWidget {
   final GameState gameState;
@@ -26,26 +27,45 @@ class ResultsScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.celebration, size: 64),
-                const SizedBox(height: 24),
                 Text(
-                  'Board Complete!',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  'BOARD\nCOMPLETE!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        shadows: [
+                          Shadow(
+                            color: NameDropTheme.gold.withValues(alpha: 0.6),
+                            blurRadius: 24,
+                          ),
+                        ],
                       ),
                 ),
-                const SizedBox(height: 32),
-                _statRow(context, 'Grid', '${gameState.gridSize}×${gameState.gridSize}'),
-                _statRow(context, 'Time', '${minutes}m ${seconds}s'),
-                _statRow(context, 'Slots Filled', '${gameState.completedSlots}'),
-                if (freeCells > 0) _statRow(context, 'Free Cells', '$freeCells'),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: NameDropTheme.panelDecoration,
+                  child: Column(
+                    children: [
+                      _statRow(context, 'Grid',
+                          '${gameState.gridSize} x ${gameState.gridSize}'),
+                      const Divider(color: NameDropTheme.dimGold, height: 24),
+                      _statRow(context, 'Time', '${minutes}m ${seconds}s'),
+                      const Divider(color: NameDropTheme.dimGold, height: 24),
+                      _statRow(
+                          context, 'Slots Filled', '${gameState.completedSlots}'),
+                      if (freeCells > 0) ...[
+                        const Divider(color: NameDropTheme.dimGold, height: 24),
+                        _statRow(context, 'Free Cells', '$freeCells'),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   icon: const Icon(Icons.replay),
-                  label: const Text('Play Again'),
+                  label: const Text('PLAY AGAIN'),
                 ),
               ],
             ),
@@ -56,20 +76,15 @@ class ResultsScreen extends StatelessWidget {
   }
 
   Widget _statRow(BuildContext context, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyLarge),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyLarge),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
+        ),
+      ],
     );
   }
 }

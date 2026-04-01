@@ -4,6 +4,7 @@ import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
+import '../theme.dart';
 import '../widgets/cell_input_dialog.dart';
 import '../widgets/game_board.dart';
 import 'results_screen.dart';
@@ -36,33 +37,51 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final completed = _state.completedSlots;
     final total = _state.totalPlayableSlots;
+    final progress = total > 0 ? completed / total : 0.0;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NameDrop'),
+        title: const Text('NAMEDROP'),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: NameDropTheme.cream),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
                 '$completed / $total',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: GameBoard(
-              gameState: _state,
-              onCellTap: _onCellTap,
+      body: Column(
+        children: [
+          // Progress bar
+          LinearProgressIndicator(
+            value: progress,
+            backgroundColor: NameDropTheme.royalBlue,
+            valueColor: const AlwaysStoppedAnimation(NameDropTheme.gold),
+            minHeight: 3,
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: GameBoard(
+                    gameState: _state,
+                    onCellTap: _onCellTap,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -78,10 +97,7 @@ class _GameScreenState extends State<GameScreen> {
     if (_usedNames.contains(celebrity.name.toLowerCase())) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${celebrity.name} has already been used!'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text('${celebrity.name} has already been used!')),
       );
       return;
     }
@@ -91,13 +107,11 @@ class _GameScreenState extends State<GameScreen> {
       _usedNames.add(celebrity.name.toLowerCase());
     });
 
-    // If the cell still has an unfilled slot, prompt for it.
     if (cell.nextUnfilledSlot != null) {
       await _onCellTap(row, col);
       return;
     }
 
-    // Check for game completion.
     if (_state.isComplete) {
       _state.phase = GamePhase.complete;
       if (!mounted) return;

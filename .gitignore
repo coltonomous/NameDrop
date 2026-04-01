@@ -1,6 +1,8 @@
 server/configs/credentials.js
 server/node_modules
 client/build
+client/.dart_tool
+client/.idea
 .vscode
 
 package-lock.json

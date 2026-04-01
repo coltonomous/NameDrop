@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../services/celebrity_service.dart';
 
@@ -19,7 +18,14 @@ class CellInputDialog extends StatefulWidget {
 }
 
 class _CellInputDialogState extends State<CellInputDialog> {
+  final _controller = TextEditingController();
   String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,73 +55,23 @@ class _CellInputDialogState extends State<CellInputDialog> {
                 ),
           ),
           const SizedBox(height: 16),
-          Autocomplete<Celebrity>(
-            optionsBuilder: (textEditingValue) {
-              if (_errorText != null) {
-                setState(() => _errorText = null);
-              }
-              return widget.service.search(
-                textEditingValue.text,
-                slot.requiredFirstInitial,
-                slot.requiredLastInitial,
-              );
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              hintText: 'Type a celebrity name...',
+              errorText: _errorText,
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: _submit,
+              ),
+            ),
+            onChanged: (_) {
+              if (_errorText != null) setState(() => _errorText = null);
             },
-            displayStringForOption: (celebrity) => celebrity.name,
-            onSelected: (celebrity) {
-              Navigator.of(context).pop(celebrity);
-            },
-            optionsViewBuilder: (context, onSelected, options) {
-              return Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(8),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: options.length,
-                      itemBuilder: (context, index) {
-                        final celebrity = options.elementAt(index);
-                        return ListTile(
-                          dense: true,
-                          title: Text(celebrity.name),
-                          subtitle: Text(
-                            celebrity.occupation,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          onTap: () => onSelected(celebrity),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              );
-            },
-            fieldViewBuilder:
-                (context, textController, focusNode, onFieldSubmitted) {
-              return TextField(
-                controller: textController,
-                focusNode: focusNode,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: 'Type a celebrity name...',
-                  errorText: _errorText,
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: () {
-                      _submitManual(textController.text);
-                    },
-                  ),
-                ),
-                onSubmitted: (_) {
-                  _submitManual(textController.text);
-                },
-              );
-            },
+            onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),
           Align(
@@ -130,8 +86,9 @@ class _CellInputDialogState extends State<CellInputDialog> {
     );
   }
 
-  void _submitManual(String text) {
-    if (text.trim().isEmpty) return;
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
     final celebrity = widget.service.validate(
       text,
       widget.slot.requiredFirstInitial,
@@ -141,7 +98,7 @@ class _CellInputDialogState extends State<CellInputDialog> {
       Navigator.of(context).pop(celebrity);
     } else {
       setState(() {
-        _errorText = 'Not found — try selecting from suggestions';
+        _errorText = 'Not in our database — try another name';
       });
     }
   }

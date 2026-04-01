@@ -31,9 +31,11 @@ class GameBoard extends StatelessWidget {
         final gameSize = available - labelSize;
 
         return Center(
-          child: SizedBox(
-            width: gameSize + labelSize,
-            height: gameSize + labelSize,
+          child: Transform.translate(
+            offset: Offset(-labelSize / 2, -labelSize / 2),
+            child: SizedBox(
+              width: gameSize + labelSize,
+              height: gameSize + labelSize,
             child: Column(
               children: [
                 // Column labels row
@@ -95,6 +97,7 @@ class GameBoard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         );
       },

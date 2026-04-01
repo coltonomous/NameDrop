@@ -74,7 +74,7 @@ class _GameScreenState extends State<GameScreen> {
                   padding: const EdgeInsets.all(16),
                   child: GameBoard(
                     gameState: _state,
-                    onCellTap: _onCellTap,
+                    onSlotTap: _onSlotTap,
                   ),
                 ),
               ),
@@ -85,10 +85,8 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Future<void> _onCellTap(int row, int col) async {
-    final cell = _state.board[row][col];
-    final slot = cell.nextUnfilledSlot;
-    if (slot == null) return;
+  Future<void> _onSlotTap(int row, int col, CellSlot slot) async {
+    if (slot.isFilled) return;
 
     final result = await _showInputDialog(slot);
     if (result == null) return;
@@ -119,12 +117,6 @@ class _GameScreenState extends State<GameScreen> {
           _usedNames.add(revealed.name.toLowerCase());
           _state.skipsUsed++;
         });
-    }
-
-    // Prompt for the second slot if still unfilled.
-    if (cell.nextUnfilledSlot != null) {
-      await _onCellTap(row, col);
-      return;
     }
 
     if (_state.isComplete) {

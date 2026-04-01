@@ -93,26 +93,26 @@ def build_database(df):
 
     selected = set()
 
-    # --- Tier 1: Pop culture, post-1900, top 12000 by HPI ---
+    # --- Tier 1: Pop culture, post-1900, top 5000 by HPI ---
     pop = df[(df["_occ_upper"].isin(POP_CULTURE)) & (df["_birth"] >= 1900)]
-    pop = pop.sort_values(by=hpi_col, ascending=False).head(12000)
+    pop = pop.sort_values(by=hpi_col, ascending=False).head(5000)
     selected.update(pop.index)
     print(f"Tier 1 (pop culture): {len(pop)}")
 
-    # --- Tier 2: Sports, post-1900, top 3000 by HPI ---
+    # --- Tier 2: Sports, post-1900, top 1500 by HPI ---
     sports = df[(df["_occ_upper"].isin(SPORTS)) & (df["_birth"] >= 1900)]
-    sports = sports.sort_values(by=hpi_col, ascending=False).head(3000)
+    sports = sports.sort_values(by=hpi_col, ascending=False).head(1500)
     selected.update(sports.index)
     print(f"Tier 2 (sports): {len(sports)}")
 
-    # --- Tier 3: Public figures, post-1900, top 2000 by HPI ---
+    # --- Tier 3: Public figures, post-1900, top 1000 by HPI ---
     public = df[(df["_occ_upper"].isin(PUBLIC_FIGURES)) & (df["_birth"] >= 1900)]
-    public = public.sort_values(by=hpi_col, ascending=False).head(2000)
+    public = public.sort_values(by=hpi_col, ascending=False).head(1000)
     selected.update(public.index)
     print(f"Tier 3 (public figures): {len(public)}")
 
-    # --- Tier 4: All-time legends regardless of category, top 750 by HPI ---
-    legends = df.sort_values(by=hpi_col, ascending=False).head(750)
+    # --- Tier 4: All-time legends regardless of category, top 500 by HPI ---
+    legends = df.sort_values(by=hpi_col, ascending=False).head(500)
     selected.update(legends.index)
     print(f"Tier 4 (all-time legends): {len(legends)}")
 

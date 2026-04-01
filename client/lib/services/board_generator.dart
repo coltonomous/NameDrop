@@ -26,7 +26,8 @@ class BoardGenerator {
 
         final hasA = _service.hasCelebrities(rowLetter, colLetter);
         final hasB = _service.hasCelebrities(colLetter, rowLetter);
-        final isFree = !hasA && !hasB;
+        // Both pairs must have celebrities for the cell to be playable.
+        final isFree = !hasA || !hasB;
 
         if (!isFree) playableCells++;
 
@@ -91,8 +92,11 @@ class BoardGenerator {
       int score = 0;
       for (final r in rows) {
         for (final c in cols) {
-          if (_service.hasCelebrities(r, c)) score++;
-          if (_service.hasCelebrities(c, r)) score++;
+          // Only count cells where BOTH pairs are covered.
+          if (_service.hasCelebrities(r, c) &&
+              _service.hasCelebrities(c, r)) {
+            score += 2;
+          }
         }
       }
 

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import 'axis_label.dart';
 import 'game_cell_widget.dart';
 
 class GameBoard extends StatelessWidget {
   final GameState gameState;
-  final void Function(int row, int col) onCellTap;
+  final void Function(int row, int col, CellSlot slot) onSlotTap;
 
   const GameBoard({
     super.key,
     required this.gameState,
-    required this.onCellTap,
+    required this.onSlotTap,
   });
 
   @override
@@ -33,9 +34,15 @@ class GameBoard extends StatelessWidget {
             child: Column(
               children: List.generate(totalSize, (rowIndex) {
                 return Expanded(
+                  // Label row is shorter than game rows.
+                  flex: rowIndex == 0 ? 1 : 2,
                   child: Row(
                     children: List.generate(totalSize, (colIndex) {
-                      return Expanded(child: _buildCell(rowIndex, colIndex));
+                      return Expanded(
+                        // Label column is narrower than game columns.
+                        flex: colIndex == 0 ? 1 : 2,
+                        child: _buildCell(rowIndex, colIndex),
+                      );
                     }),
                   ),
                 );
@@ -70,7 +77,7 @@ class GameBoard extends StatelessWidget {
 
     return GameCellWidget(
       cell: cell,
-      onTap: () => onCellTap(gameRow, gameCol),
+      onSlotTap: (slot) => onSlotTap(gameRow, gameCol, slot),
     );
   }
 }

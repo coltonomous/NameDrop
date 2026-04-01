@@ -36,6 +36,7 @@ class _CellInputDialogState extends State<CellInputDialog>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   String? _errorText;
+  bool _isValidating = false;
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
 
@@ -102,16 +103,29 @@ class _CellInputDialogState extends State<CellInputDialog>
             child: TextField(
               controller: _controller,
               autofocus: true,
+              enabled: !_isValidating,
               textCapitalization: TextCapitalization.words,
               style: Theme.of(context).textTheme.bodyLarge,
               cursorColor: NameDropTheme.gold,
               decoration: InputDecoration(
                 hintText: 'Type a celebrity name...',
                 errorText: _errorText,
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.send, color: NameDropTheme.gold),
-                  onPressed: _submit,
-                ),
+                suffixIcon: _isValidating
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: NameDropTheme.gold,
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.send, color: NameDropTheme.gold),
+                        onPressed: _submit,
+                      ),
               ),
               onChanged: (_) {
                 if (_errorText != null) setState(() => _errorText = null);
@@ -125,8 +139,9 @@ class _CellInputDialogState extends State<CellInputDialog>
             children: [
               if (widget.skipsRemaining > 0)
                 TextButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pop(CellInputSkip()),
+                  onPressed: _isValidating
+                      ? null
+                      : () => Navigator.of(context).pop(CellInputSkip()),
                   icon: const Icon(Icons.skip_next, size: 18),
                   label: Text('Skip (${widget.skipsRemaining} left)'),
                   style: TextButton.styleFrom(
@@ -136,7 +151,9 @@ class _CellInputDialogState extends State<CellInputDialog>
               else
                 const SizedBox.shrink(),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
+                onPressed: _isValidating
+                    ? null
+                    : () => Navigator.of(context).pop(null),
                 child: const Text('Cancel'),
               ),
             ],
@@ -146,17 +163,26 @@ class _CellInputDialogState extends State<CellInputDialog>
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    final celebrity = widget.service.validate(
+    if (text.isEmpty || _isValidating) return;
+
+    setState(() => _isValidating = true);
+
+    final celebrity = await widget.service.validate(
       text,
       widget.slot.requiredFirstInitial,
       widget.slot.requiredLastInitial,
     );
+
+    if (!mounted) return;
+
     if (celebrity != null) {
       Navigator.of(context).pop(CellInputAnswer(celebrity));
     } else {
+      setState(() {
+        _isValidating = false;
+      });
       _shakeController.forward(from: 0);
       setState(() {
         _errorText = "We don't know that one — try someone else";

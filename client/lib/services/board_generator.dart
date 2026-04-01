@@ -8,6 +8,8 @@ class BoardGenerator {
   final CelebrityService _service;
   final Random _random = Random();
 
+  static const _vowels = {'A', 'E', 'I', 'O', 'U'};
+
   BoardGenerator(this._service);
 
   GameState generate(int gridSize) {
@@ -24,9 +26,10 @@ class BoardGenerator {
         final rowLetter = rowLetters[r];
         final colLetter = columnLetters[c];
 
+        // For alliterative cells (same letter on both axes),
+        // both slots need the same pair — require it exists.
         final hasA = _service.hasCelebrities(rowLetter, colLetter);
         final hasB = _service.hasCelebrities(colLetter, rowLetter);
-        // Both pairs must have celebrities for the cell to be playable.
         final isFree = !hasA || !hasB;
 
         if (!isFree) playableCells++;
@@ -57,12 +60,14 @@ class BoardGenerator {
     );
   }
 
-  /// Select row and column letters that maximize playable cells.
+  /// Select row and column letters. Letters CAN repeat across axes
+  /// (enabling alliterative cells). Each axis gets at least one vowel.
+  /// Selection is weighted toward letters with more coverage.
   (List<String>, List<String>) _selectLetters(int gridSize) {
-    // Score each letter by how many initial pairs it participates in.
+    // Build weighted scores for each letter.
     final letterScores = <String, int>{};
     for (int i = 0; i < 26; i++) {
-      final letter = String.fromCharCode(65 + i); // A-Z
+      final letter = String.fromCharCode(65 + i);
       int score = 0;
       for (int j = 0; j < 26; j++) {
         final other = String.fromCharCode(65 + j);
@@ -72,27 +77,29 @@ class BoardGenerator {
       letterScores[letter] = score;
     }
 
-    // Sort letters by score descending.
+    // Build candidate pool: top letters by score, with enough variety.
     final rankedLetters = letterScores.keys.toList()
       ..sort((a, b) => letterScores[b]!.compareTo(letterScores[a]!));
+    final candidatePool = rankedLetters.take(max(gridSize * 4, 18)).toSet();
 
-    // Take the top candidates (enough headroom for variety).
-    final candidatePool = rankedLetters.take(max(gridSize * 4, 16)).toList();
+    // Ensure vowels are in the pool.
+    candidatePool.addAll(_vowels.where((v) => letterScores[v]! > 0));
 
-    // Try multiple random selections, pick the best one.
     List<String> bestRows = [];
     List<String> bestCols = [];
     int bestScore = -1;
 
-    for (int attempt = 0; attempt < 50; attempt++) {
-      final shuffled = List<String>.from(candidatePool)..shuffle(_random);
-      final rows = shuffled.sublist(0, gridSize);
-      final cols = shuffled.sublist(gridSize, gridSize * 2);
+    for (int attempt = 0; attempt < 100; attempt++) {
+      final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
+      final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
+
+      // Require at least one vowel per axis.
+      if (!rows.any((l) => _vowels.contains(l))) continue;
+      if (!cols.any((l) => _vowels.contains(l))) continue;
 
       int score = 0;
       for (final r in rows) {
         for (final c in cols) {
-          // Only count cells where BOTH pairs are covered.
           if (_service.hasCelebrities(r, c) &&
               _service.hasCelebrities(c, r)) {
             score += 2;
@@ -108,5 +115,33 @@ class BoardGenerator {
     }
 
     return (bestRows, bestCols);
+  }
+
+  /// Pick n unique letters weighted by their scores.
+  List<String> _pickWeighted(
+      List<String> pool, int n, Map<String, int> scores) {
+    final picked = <String>[];
+    final remaining = List<String>.from(pool);
+
+    for (int i = 0; i < n && remaining.isNotEmpty; i++) {
+      // Build cumulative weights.
+      final totalWeight =
+          remaining.fold<int>(0, (sum, l) => sum + (scores[l] ?? 1));
+      int target = _random.nextInt(totalWeight);
+
+      String selected = remaining.last;
+      for (final letter in remaining) {
+        target -= scores[letter] ?? 1;
+        if (target < 0) {
+          selected = letter;
+          break;
+        }
+      }
+
+      picked.add(selected);
+      remaining.remove(selected);
+    }
+
+    return picked;
   }
 }

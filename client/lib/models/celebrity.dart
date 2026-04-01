@@ -5,6 +5,7 @@ class Celebrity {
   final String occupation;
   final int? birthYear;
   final double hpi;
+  final String? wikiUrl;
 
   const Celebrity({
     required this.name,
@@ -13,6 +14,7 @@ class Celebrity {
     required this.occupation,
     this.birthYear,
     required this.hpi,
+    this.wikiUrl,
   });
 
   factory Celebrity.fromJson(Map<String, dynamic> json) => Celebrity(

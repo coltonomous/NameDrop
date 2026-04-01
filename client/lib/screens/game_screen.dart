@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
+import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
 import '../theme.dart';
 import '../widgets/cell_input_dialog.dart';
@@ -24,7 +25,7 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  late final GameState _state;
+  late GameState _state;
   final Set<String> _usedNames = {};
 
   @override
@@ -47,6 +48,12 @@ class _GameScreenState extends State<GameScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          if (!_state.rerollUsed)
+            IconButton(
+              icon: const Icon(Icons.casino, color: NameDropTheme.brightGold),
+              tooltip: 'Reroll a letter',
+              onPressed: _showRerollDialog,
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -75,6 +82,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: GameBoard(
                     gameState: _state,
                     onSlotTap: _onSlotTap,
+                    onSlotClear: _onSlotClear,
                   ),
                 ),
               ),
@@ -130,6 +138,203 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  void _onSlotClear(int row, int col, CellSlot slot) {
+    if (!slot.isFilled) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NameDropTheme.royalBlue,
+        title: Text('Clear ${slot.answer!.name}?',
+            style: const TextStyle(color: NameDropTheme.cream)),
+        content: Text(
+          slot.answer?.wikiUrl != null
+              ? 'This will remove the answer. You can also view their Wikipedia page.'
+              : 'This will remove the answer from this slot.',
+          style: const TextStyle(color: NameDropTheme.brightGold),
+        ),
+        actions: [
+          if (slot.answer?.wikiUrl != null)
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _openWikiUrl(slot.answer!.wikiUrl!);
+              },
+              child: const Text('View Wikipedia'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              setState(() {
+                _usedNames.remove(slot.answer!.name.toLowerCase());
+                if (slot.wasSkipped) _state.skipsUsed--;
+                slot.answer = null;
+                slot.wasSkipped = false;
+              });
+            },
+            style: TextButton.styleFrom(
+                foregroundColor: NameDropTheme.hotCoral),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openWikiUrl(String url) {
+    // Use url_launcher if available, otherwise show the URL.
+    // For web, we can use dart:html or just show a snackbar with the link.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(url), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _showRerollDialog() {
+    final allLetters =
+        [..._state.rowLetters, ..._state.columnLetters];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Reroll a letter',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 4),
+            Text('Pick one letter to replace. This clears any answers in that row or column.',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (int i = 0; i < _state.rowLetters.length; i++)
+                  _rerollChip(ctx, 'Row ${_state.rowLetters[i]}', i, true),
+                for (int i = 0; i < _state.columnLetters.length; i++)
+                  _rerollChip(ctx, 'Col ${_state.columnLetters[i]}', i, false),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rerollChip(BuildContext ctx, String label, int index, bool isRow) {
+    return ActionChip(
+      label: Text(label),
+      backgroundColor: NameDropTheme.panelBlue,
+      labelStyle: const TextStyle(color: NameDropTheme.gold),
+      side: const BorderSide(color: NameDropTheme.dimGold),
+      onPressed: () {
+        Navigator.of(ctx).pop();
+        _performReroll(index, isRow);
+      },
+    );
+  }
+
+  void _performReroll(int index, bool isRow) {
+    final generator = BoardGenerator(widget.service);
+    final currentLetters = isRow
+        ? List<String>.from(_state.rowLetters)
+        : List<String>.from(_state.columnLetters);
+
+    // Pick a new letter not already on either axis.
+    final usedLetters = {
+      ..._state.rowLetters,
+      ..._state.columnLetters,
+    };
+    final available = List.generate(26, (i) => String.fromCharCode(65 + i))
+        .where((l) => !usedLetters.contains(l) && widget.service.getByInitials(l, l).isNotEmpty || !usedLetters.contains(l))
+        .toList()
+      ..shuffle();
+
+    if (available.isEmpty) return;
+
+    final oldLetter = currentLetters[index];
+    final newLetter = available.first;
+
+    setState(() {
+      if (isRow) {
+        _state.rowLetters[index] = newLetter;
+        // Clear and rebuild cells in this row.
+        for (int c = 0; c < _state.gridSize; c++) {
+          final cell = _state.board[index][c];
+          _clearCell(cell);
+          _rebuildCell(index, c);
+        }
+      } else {
+        _state.columnLetters[index] = newLetter;
+        // Clear and rebuild cells in this column.
+        for (int r = 0; r < _state.gridSize; r++) {
+          final cell = _state.board[r][index];
+          _clearCell(cell);
+          _rebuildCell(r, index);
+        }
+      }
+      _state.rerollUsed = true;
+      _recountPlayableCells();
+    });
+  }
+
+  void _clearCell(GameCell cell) {
+    if (cell.slotA.isFilled) {
+      _usedNames.remove(cell.slotA.answer!.name.toLowerCase());
+      if (cell.slotA.wasSkipped) _state.skipsUsed--;
+    }
+    if (cell.slotB.isFilled) {
+      _usedNames.remove(cell.slotB.answer!.name.toLowerCase());
+      if (cell.slotB.wasSkipped) _state.skipsUsed--;
+    }
+  }
+
+  void _rebuildCell(int r, int c) {
+    final rowLetter = _state.rowLetters[r];
+    final colLetter = _state.columnLetters[c];
+
+    final hasA = widget.service.hasCelebrities(rowLetter, colLetter);
+    final hasB = widget.service.hasCelebrities(colLetter, rowLetter);
+
+    _state.board[r][c] = GameCell(
+      row: r,
+      col: c,
+      slotA: CellSlot(
+        requiredFirstInitial: rowLetter,
+        requiredLastInitial: colLetter,
+      ),
+      slotB: CellSlot(
+        requiredFirstInitial: colLetter,
+        requiredLastInitial: rowLetter,
+      ),
+      isFree: !hasA || !hasB,
+    );
+  }
+
+  void _recountPlayableCells() {
+    int count = 0;
+    for (final row in _state.board) {
+      for (final cell in row) {
+        if (!cell.isFree) count++;
+      }
+    }
+    _state.totalPlayableCells = count;
+  }
+
   Future<void> _showRevealAnimation(Celebrity celebrity) {
     return showGeneralDialog(
       context: context,
@@ -150,7 +355,6 @@ class _GameScreenState extends State<GameScreen> {
         );
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        // Auto-dismiss after the reveal holds.
         Future.delayed(const Duration(milliseconds: 1800), () {
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
@@ -162,7 +366,8 @@ class _GameScreenState extends State<GameScreen> {
             color: Colors.transparent,
             child: Container(
               margin: const EdgeInsets.all(32),
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
               decoration: BoxDecoration(
                 color: NameDropTheme.navy,
                 borderRadius: BorderRadius.circular(16),
@@ -205,7 +410,6 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Pick a random celebrity for the slot that hasn't been used yet.
   _pickRevealCelebrity(CellSlot slot) {
     final candidates = widget.service
         .getByInitials(slot.requiredFirstInitial, slot.requiredLastInitial)

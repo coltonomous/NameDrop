@@ -8,11 +8,13 @@ import 'game_cell_widget.dart';
 class GameBoard extends StatelessWidget {
   final GameState gameState;
   final void Function(int row, int col, CellSlot slot) onSlotTap;
+  final void Function(int row, int col, CellSlot slot)? onSlotClear;
 
   const GameBoard({
     super.key,
     required this.gameState,
     required this.onSlotTap,
+    this.onSlotClear,
   });
 
   @override
@@ -78,6 +80,9 @@ class GameBoard extends StatelessWidget {
     return GameCellWidget(
       cell: cell,
       onSlotTap: (slot) => onSlotTap(gameRow, gameCol, slot),
+      onSlotClear: onSlotClear != null
+          ? (slot) => onSlotClear!(gameRow, gameCol, slot)
+          : null,
     );
   }
 }

@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  fuzzywuzzy: ^1.2.0
   google_fonts: ^6.2.1
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

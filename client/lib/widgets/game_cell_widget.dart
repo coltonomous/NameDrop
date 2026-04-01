@@ -6,8 +6,14 @@ import '../theme.dart';
 class GameCellWidget extends StatelessWidget {
   final GameCell cell;
   final void Function(CellSlot slot)? onSlotTap;
+  final void Function(CellSlot slot)? onSlotClear;
 
-  const GameCellWidget({super.key, required this.cell, this.onSlotTap});
+  const GameCellWidget({
+    super.key,
+    required this.cell,
+    this.onSlotTap,
+    this.onSlotClear,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +61,13 @@ class GameCellWidget extends StatelessWidget {
   }
 
   Widget _buildSlotArea(BuildContext context, CellSlot slot) {
-    final tappable = !slot.isFilled && onSlotTap != null;
-
     return GestureDetector(
-      onTap: tappable ? () => onSlotTap!(slot) : null,
+      onTap: !slot.isFilled && onSlotTap != null
+          ? () => onSlotTap!(slot)
+          : null,
+      onLongPress: slot.isFilled && onSlotClear != null
+          ? () => onSlotClear!(slot)
+          : null,
       behavior: HitTestBehavior.opaque,
       child: Center(
         child: Padding(
@@ -71,19 +80,38 @@ class GameCellWidget extends StatelessWidget {
 
   Widget _buildSlotText(BuildContext context, CellSlot slot) {
     if (slot.isFilled) {
-      return Text(
-        slot.answer!.name,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: slot.wasSkipped ? FontWeight.w400 : FontWeight.w600,
-              fontStyle:
-                  slot.wasSkipped ? FontStyle.italic : FontStyle.normal,
-              color: slot.wasSkipped
-                  ? NameDropTheme.hotCoral.withValues(alpha: 0.8)
-                  : Colors.white,
+      final hasWiki = slot.answer?.wikiUrl != null;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              slot.answer!.name,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight:
+                        slot.wasSkipped ? FontWeight.w400 : FontWeight.w600,
+                    fontStyle:
+                        slot.wasSkipped ? FontStyle.italic : FontStyle.normal,
+                    color: slot.wasSkipped
+                        ? NameDropTheme.hotCoral.withValues(alpha: 0.8)
+                        : Colors.white,
+                  ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+          ),
+          if (hasWiki)
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: Icon(
+                Icons.open_in_new,
+                size: 8,
+                color: NameDropTheme.dimGold,
+              ),
+            ),
+        ],
       );
     }
 

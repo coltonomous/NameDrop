@@ -7,9 +7,10 @@ class GameState {
   final List<String> rowLetters;
   final List<String> columnLetters;
   final List<List<GameCell>> board;
-  final int totalPlayableCells;
+  int totalPlayableCells;
   final int maxSkips;
   int skipsUsed = 0;
+  bool rerollUsed = false;
   GamePhase phase;
   final DateTime startTime;
 

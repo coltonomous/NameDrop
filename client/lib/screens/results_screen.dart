@@ -172,6 +172,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (gs.skipsUsed > 0) {
       buf.write(' | \u23ED\uFE0F ${gs.skipsUsed} skip${gs.skipsUsed > 1 ? 's' : ''}');
     }
+    buf.writeln();
+    buf.write('https://coltonomous.github.io/NameDrop/');
 
     return buf.toString();
   }

@@ -55,7 +55,6 @@ class CelebrityService {
     final result = extractOne(
       query: name.trim(),
       choices: names,
-      cutoff: 75,
     );
 
     if (result.score >= 75) {

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../models/celebrity.dart';
@@ -30,12 +32,35 @@ class CellInputDialog extends StatefulWidget {
   State<CellInputDialog> createState() => _CellInputDialogState();
 }
 
-class _CellInputDialogState extends State<CellInputDialog> {
+class _CellInputDialogState extends State<CellInputDialog>
+    with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   String? _errorText;
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -12), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -12, end: 12), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 12, end: -8), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8, end: 6), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(
+      parent: _shakeController,
+      curve: Curves.easeOut,
+    ));
+  }
 
   @override
   void dispose() {
+    _shakeController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -66,24 +91,33 @@ class _CellInputDialogState extends State<CellInputDialog> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            style: Theme.of(context).textTheme.bodyLarge,
-            cursorColor: NameDropTheme.gold,
-            decoration: InputDecoration(
-              hintText: 'Type a celebrity name...',
-              errorText: _errorText,
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.send, color: NameDropTheme.gold),
-                onPressed: _submit,
-              ),
-            ),
-            onChanged: (_) {
-              if (_errorText != null) setState(() => _errorText = null);
+          AnimatedBuilder(
+            animation: _shakeAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(_shakeAnimation.value, 0),
+                child: child,
+              );
             },
-            onSubmitted: (_) => _submit(),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              style: Theme.of(context).textTheme.bodyLarge,
+              cursorColor: NameDropTheme.gold,
+              decoration: InputDecoration(
+                hintText: 'Type a celebrity name...',
+                errorText: _errorText,
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.send, color: NameDropTheme.gold),
+                  onPressed: _submit,
+                ),
+              ),
+              onChanged: (_) {
+                if (_errorText != null) setState(() => _errorText = null);
+              },
+              onSubmitted: (_) => _submit(),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -123,8 +157,9 @@ class _CellInputDialogState extends State<CellInputDialog> {
     if (celebrity != null) {
       Navigator.of(context).pop(CellInputAnswer(celebrity));
     } else {
+      _shakeController.forward(from: 0);
       setState(() {
-        _errorText = 'Not in our database — try another name';
+        _errorText = "We don't know that one — try someone else";
       });
     }
   }

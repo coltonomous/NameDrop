@@ -20,69 +20,84 @@ class GameBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gridSize = gameState.gridSize;
-    final totalSize = gridSize + 1;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Square board sized to fit the smaller dimension.
-        final boardSize = constraints.maxWidth < constraints.maxHeight
+        final labelSize = 36.0;
+        // Square game area sized to fit, minus space for labels.
+        final available = constraints.maxWidth < constraints.maxHeight
             ? constraints.maxWidth
             : constraints.maxHeight;
+        final gameSize = available - labelSize;
 
         return Center(
           child: SizedBox(
-            width: boardSize,
-            height: boardSize,
+            width: gameSize + labelSize,
+            height: gameSize + labelSize,
             child: Column(
-              children: List.generate(totalSize, (rowIndex) {
-                return Expanded(
-                  // Label row is shorter than game rows.
-                  flex: rowIndex == 0 ? 1 : 2,
+              children: [
+                // Column labels row
+                SizedBox(
+                  height: labelSize,
                   child: Row(
-                    children: List.generate(totalSize, (colIndex) {
-                      return Expanded(
-                        // Label column is narrower than game columns.
-                        flex: colIndex == 0 ? 1 : 2,
-                        child: _buildCell(rowIndex, colIndex),
-                      );
-                    }),
+                    children: [
+                      SizedBox(width: labelSize), // corner spacer
+                      ...List.generate(gridSize, (c) {
+                        return Expanded(
+                          child: AxisLabel(gameState.columnLetters[c]),
+                        );
+                      }),
+                    ],
                   ),
-                );
-              }),
+                ),
+                // Game rows with row labels
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Row labels column
+                      SizedBox(
+                        width: labelSize,
+                        child: Column(
+                          children: List.generate(gridSize, (r) {
+                            return Expanded(
+                              child: AxisLabel(gameState.rowLetters[r]),
+                            );
+                          }),
+                        ),
+                      ),
+                      // Game cells grid (square)
+                      Expanded(
+                        child: Column(
+                          children: List.generate(gridSize, (r) {
+                            return Expanded(
+                              child: Row(
+                                children: List.generate(gridSize, (c) {
+                                  final cell = gameState.board[r][c];
+                                  return Expanded(
+                                    child: GameCellWidget(
+                                      cell: cell,
+                                      onSlotTap: (slot) =>
+                                          onSlotTap(r, c, slot),
+                                      onSlotClear: onSlotClear != null
+                                          ? (slot) =>
+                                              onSlotClear!(r, c, slot)
+                                          : null,
+                                    ),
+                                  );
+                                }),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildCell(int rowIndex, int colIndex) {
-    // Top-left corner: empty
-    if (rowIndex == 0 && colIndex == 0) {
-      return const SizedBox.shrink();
-    }
-
-    // Top row: column labels
-    if (rowIndex == 0) {
-      return AxisLabel(gameState.columnLetters[colIndex - 1]);
-    }
-
-    // Left column: row labels
-    if (colIndex == 0) {
-      return AxisLabel(gameState.rowLetters[rowIndex - 1]);
-    }
-
-    // Game cell
-    final gameRow = rowIndex - 1;
-    final gameCol = colIndex - 1;
-    final cell = gameState.board[gameRow][gameCol];
-
-    return GameCellWidget(
-      cell: cell,
-      onSlotTap: (slot) => onSlotTap(gameRow, gameCol, slot),
-      onSlotClear: onSlotClear != null
-          ? (slot) => onSlotClear!(gameRow, gameCol, slot)
-          : null,
     );
   }
 }

@@ -70,7 +70,7 @@ class _CellInputDialogState extends State<CellInputDialog>
   Widget build(BuildContext context) {
     final slot = widget.slot;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: 24,
         right: 24,

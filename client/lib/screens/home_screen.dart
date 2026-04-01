@@ -20,8 +20,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
+      body: FocusScope(
+        autofocus: false,
+        child: Center(
+          child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Padding(
@@ -67,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 40),
                 FilledButton.icon(
                   onPressed: _startGame,
+                  autofocus: false,
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('NEW GAME'),
                 ),
@@ -82,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

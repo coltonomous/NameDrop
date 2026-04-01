@@ -32,7 +32,7 @@ class CelebrityService {
     return getByInitials(firstInitial, lastInitial).isNotEmpty;
   }
 
-  /// Validate a name: try local DB (normalized exact match), then Wikipedia.
+  /// Validate a name: try Wikipedia first (for wiki link), then local DB.
   Future<Celebrity?> validate(
       String name, String firstInitial, String lastInitial) async {
     if (name.trim().isEmpty) return null;
@@ -41,11 +41,24 @@ class CelebrityService {
     final wiki = await _validateWikipedia(name, firstInitial, lastInitial);
     if (wiki != null) return wiki;
 
-    return _validateLocal(name, firstInitial, lastInitial);
+    // Fall back to local DB, with an optimistic wiki URL.
+    final local = _validateLocal(name, firstInitial, lastInitial);
+    if (local != null) {
+      final slug = _buildSlug(local.name);
+      return Celebrity(
+        name: local.name,
+        firstInitial: local.firstInitial,
+        lastInitial: local.lastInitial,
+        occupation: local.occupation,
+        birthYear: local.birthYear,
+        hpi: local.hpi,
+        wikiUrl: 'https://en.wikipedia.org/wiki/$slug',
+      );
+    }
+    return null;
   }
 
   /// Normalized exact match: lowercase, strip diacritics and punctuation.
-  /// No edit-distance tolerance — only casing and special characters differ.
   Celebrity? _validateLocal(
       String name, String firstInitial, String lastInitial) {
     final candidates = getByInitials(firstInitial, lastInitial);
@@ -74,14 +87,28 @@ class CelebrityService {
         .trim();
   }
 
-  /// Check Wikipedia: verify the page exists and is about a person.
-  Future<Celebrity?> _validateWikipedia(
-      String name, String firstInitial, String lastInitial) async {
-    // Strip periods, commas, quotes, and other non-name characters.
-    final sanitized = name.trim()
+  /// Sanitize input and build a Wikipedia-friendly slug.
+  static String _sanitize(String name) {
+    return name
+        .trim()
         .replaceAll(RegExp(r'[.,;:!?\'"""''`#@&*()[\]{}|\\/<>~^]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+  }
+
+  /// Build a Wikipedia URL slug. Capitalize first letter of each word,
+  /// leave the rest as-is (preserves McDonald, DeVito, etc.).
+  static String _buildSlug(String name) {
+    return name.split(RegExp(r'\s+')).map((w) {
+      if (w.isEmpty) return w;
+      return '${w[0].toUpperCase()}${w.substring(1)}';
+    }).join('_');
+  }
+
+  /// Check Wikipedia: verify the page exists and is about a person.
+  Future<Celebrity?> _validateWikipedia(
+      String name, String firstInitial, String lastInitial) async {
+    final sanitized = _sanitize(name);
 
     // Verify initials match before hitting the network.
     final parts = sanitized.split(' ');
@@ -91,10 +118,7 @@ class CelebrityService {
       return null;
     }
 
-    // Title-case each word for the Wikipedia slug.
-    final slug = parts
-        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : w)
-        .join('_');
+    final slug = _buildSlug(sanitized);
     final url = Uri.parse(
         'https://en.wikipedia.org/api/rest_v1/page/summary/$slug');
 
@@ -105,31 +129,32 @@ class CelebrityService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final description = (data['description'] as String? ?? '').toLowerCase();
+        final description =
+            (data['description'] as String? ?? '').toLowerCase();
         final extract = (data['extract'] as String? ?? '').toLowerCase();
-        final title = data['title'] as String? ?? trimmed;
-        final pageUrl = data['content_urls']?['desktop']?['page'] as String?;
+        final title = data['title'] as String? ?? sanitized;
+        final pageUrl =
+            data['content_urls']?['desktop']?['page'] as String?;
 
-        // Check if this is about a person.
         if (!_isPerson(description, extract)) return null;
 
         return Celebrity(
           name: title,
           firstInitial: firstInitial,
           lastInitial: lastInitial,
-          occupation: _formatDescription(data['description'] as String? ?? ''),
+          occupation: _formatDescription(
+              data['description'] as String? ?? ''),
           hpi: 0,
           wikiUrl: pageUrl,
         );
       }
     } catch (_) {
-      // Network error or timeout — offline, local-only already failed.
+      // Network error or timeout — offline, fall through to local.
     }
 
     return null;
   }
 
-  /// Heuristic: does the Wikipedia description/extract suggest a person?
   static bool _isPerson(String description, String extract) {
     const personIndicators = [
       'born', 'died', 'was a', 'is a', 'are a',

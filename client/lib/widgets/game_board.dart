@@ -23,7 +23,7 @@ class GameBoard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final labelSize = 36.0;
+        final labelSize = 48.0;
         // Square game area sized to fit, minus space for labels.
         final available = constraints.maxWidth < constraints.maxHeight
             ? constraints.maxWidth

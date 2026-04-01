@@ -220,7 +220,7 @@ class _GameScreenState extends State<GameScreen> {
             Text('Reroll a letter',
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 4),
-            Text('Pick one letter to replace. This clears any answers in that row or column.',
+            Text('Pick an empty row or column to reroll.',
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
             Wrap(
@@ -228,9 +228,11 @@ class _GameScreenState extends State<GameScreen> {
               runSpacing: 8,
               children: [
                 for (int i = 0; i < _state.rowLetters.length; i++)
-                  _rerollChip(ctx, 'Row ${_state.rowLetters[i]}', i, true),
+                  _rerollChip(ctx, 'Row ${_state.rowLetters[i]}', i, true,
+                      _isRowEmpty(i)),
                 for (int i = 0; i < _state.columnLetters.length; i++)
-                  _rerollChip(ctx, 'Col ${_state.columnLetters[i]}', i, false),
+                  _rerollChip(ctx, 'Col ${_state.columnLetters[i]}', i, false,
+                      _isColEmpty(i)),
               ],
             ),
             const SizedBox(height: 12),
@@ -247,16 +249,34 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _rerollChip(BuildContext ctx, String label, int index, bool isRow) {
+  bool _isRowEmpty(int row) {
+    return _state.board[row].every((cell) =>
+        cell.isFree || (!cell.slotA.isFilled && !cell.slotB.isFilled));
+  }
+
+  bool _isColEmpty(int col) {
+    return _state.board.every((row) {
+      final cell = row[col];
+      return cell.isFree || (!cell.slotA.isFilled && !cell.slotB.isFilled);
+    });
+  }
+
+  Widget _rerollChip(
+      BuildContext ctx, String label, int index, bool isRow, bool enabled) {
     return ActionChip(
       label: Text(label),
-      backgroundColor: NameDropTheme.panelBlue,
-      labelStyle: const TextStyle(color: NameDropTheme.gold),
-      side: const BorderSide(color: NameDropTheme.dimGold),
-      onPressed: () {
-        Navigator.of(ctx).pop();
-        _performReroll(index, isRow);
-      },
+      backgroundColor:
+          enabled ? NameDropTheme.panelBlue : NameDropTheme.navy,
+      labelStyle: TextStyle(
+          color: enabled ? NameDropTheme.gold : NameDropTheme.dimGold),
+      side: BorderSide(
+          color: enabled ? NameDropTheme.dimGold : NameDropTheme.navy),
+      onPressed: enabled
+          ? () {
+              Navigator.of(ctx).pop();
+              _performReroll(index, isRow);
+            }
+          : null,
     );
   }
 

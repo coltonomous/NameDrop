@@ -181,6 +181,16 @@ class CelebrityService {
 
         if (!_isPerson(description, extract)) return null;
 
+        // Verify the page is about the person we searched for,
+        // not a redirect to a group, place, or other entity.
+        final normalizedTitle = _normalize(title);
+        final normalizedInput = _normalize(sanitized);
+        if (normalizedTitle != normalizedInput &&
+            !normalizedTitle.contains(normalizedInput) &&
+            !normalizedInput.contains(normalizedTitle)) {
+          return null;
+        }
+
         return Celebrity(
           name: title,
           firstInitial: firstInitial,

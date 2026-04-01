@@ -24,6 +24,7 @@ class Celebrity {
         occupation: json['occupation'] as String,
         birthYear: json['birthYear'] as int?,
         hpi: (json['hpi'] as num).toDouble(),
+        wikiUrl: json['wikiUrl'] as String?,
       );
 
   String get pairKey => '$firstInitial$lastInitial';

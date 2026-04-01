@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
-import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
 import '../theme.dart';
 import '../widgets/cell_input_dialog.dart';
@@ -214,9 +213,6 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showRerollDialog() {
-    final allLetters =
-        [..._state.rowLetters, ..._state.columnLetters];
-
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Padding(
@@ -269,11 +265,6 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _performReroll(int index, bool isRow) {
-    final generator = BoardGenerator(widget.service);
-    final currentLetters = isRow
-        ? List<String>.from(_state.rowLetters)
-        : List<String>.from(_state.columnLetters);
-
     // Pick a new letter not already on either axis.
     final usedLetters = {
       ..._state.rowLetters,
@@ -286,7 +277,6 @@ class _GameScreenState extends State<GameScreen> {
 
     if (available.isEmpty) return;
 
-    final oldLetter = currentLetters[index];
     final newLetter = available.first;
 
     setState(() {

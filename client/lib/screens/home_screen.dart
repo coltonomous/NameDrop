@@ -24,68 +24,68 @@ class _HomeScreenState extends State<HomeScreen> {
         autofocus: false,
         child: Center(
           child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                // Title with glow effect
-                Text(
-                  'NAMEDROP',
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        shadows: [
-                          Shadow(
-                            color: NameDropTheme.gold.withValues(alpha: 0.6),
-                            blurRadius: 24,
-                          ),
-                        ],
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'THE CELEBRITY INITIALS GAME',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        letterSpacing: 3,
-                      ),
-                ),
-                const SizedBox(height: 56),
-                Text(
-                  'GRID SIZE',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 16),
-                Row(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _gridButton(3, '3x3'),
-                    const SizedBox(width: 12),
-                    _gridButton(4, '4x4'),
-                    const SizedBox(width: 12),
-                    _gridButton(5, '5x5'),
+                    // Title with glow effect
+                    Text(
+                      'NAMEDROP',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                            shadows: [
+                              Shadow(
+                                color: NameDropTheme.gold.withValues(alpha: 0.6),
+                                blurRadius: 24,
+                              ),
+                            ],
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'THE CELEBRITY INITIALS GAME',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            letterSpacing: 3,
+                          ),
+                    ),
+                    const SizedBox(height: 56),
+                    Text(
+                      'GRID SIZE',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _gridButton(3, '3x3'),
+                        const SizedBox(width: 12),
+                        _gridButton(4, '4x4'),
+                        const SizedBox(width: 12),
+                        _gridButton(5, '5x5'),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                    FilledButton.icon(
+                      onPressed: _startGame,
+                      autofocus: false,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('NEW GAME'),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      _buildLabel,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: NameDropTheme.dimGold,
+                            fontSize: 10,
+                          ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 40),
-                FilledButton.icon(
-                  onPressed: _startGame,
-                  autofocus: false,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('NEW GAME'),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  _buildLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: NameDropTheme.dimGold,
-                        fontSize: 10,
-                      ),
-                ),
-              ],
               ),
             ),
           ),
-        ),
         ),
       ),
     );

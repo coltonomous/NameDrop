@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
@@ -110,6 +111,8 @@ class _GameScreenState extends State<GameScreen> {
       case CellInputSkip():
         final revealed = _pickRevealCelebrity(slot);
         if (revealed == null) return;
+        await _showRevealAnimation(revealed);
+        if (!mounted) return;
         setState(() {
           slot.answer = revealed;
           slot.wasSkipped = true;
@@ -133,6 +136,81 @@ class _GameScreenState extends State<GameScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _showRevealAnimation(Celebrity celebrity) {
+    return showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 600),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.elasticOut,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.5, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (context, animation, secondaryAnimation) {
+        // Auto-dismiss after the reveal holds.
+        Future.delayed(const Duration(milliseconds: 1800), () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        });
+
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.all(32),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+              decoration: BoxDecoration(
+                color: NameDropTheme.navy,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: NameDropTheme.gold, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: NameDropTheme.gold.withValues(alpha: 0.3),
+                    blurRadius: 40,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    celebrity.name,
+                    style: const TextStyle(
+                      fontFamily: 'Bangers',
+                      fontSize: 36,
+                      color: NameDropTheme.gold,
+                      letterSpacing: 2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    celebrity.occupation,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: NameDropTheme.brightGold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   /// Pick a random celebrity for the slot that hasn't been used yet.

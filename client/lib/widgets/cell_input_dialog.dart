@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../services/celebrity_service.dart';
 import '../theme.dart';
 
+sealed class CellInputResult {}
+
+class CellInputAnswer extends CellInputResult {
+  final Celebrity celebrity;
+  CellInputAnswer(this.celebrity);
+}
+
+class CellInputSkip extends CellInputResult {}
+
 class CellInputDialog extends StatefulWidget {
   final CellSlot slot;
   final CelebrityService service;
+  final int skipsRemaining;
 
   const CellInputDialog({
     super.key,
     required this.slot,
     required this.service,
+    required this.skipsRemaining,
   });
 
   @override
@@ -74,12 +86,26 @@ class _CellInputDialogState extends State<CellInputDialog> {
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (widget.skipsRemaining > 0)
+                TextButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(CellInputSkip()),
+                  icon: const Icon(Icons.skip_next, size: 18),
+                  label: Text('Skip (${widget.skipsRemaining} left)'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: NameDropTheme.hotCoral,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+            ],
           ),
         ],
       ),
@@ -95,7 +121,7 @@ class _CellInputDialogState extends State<CellInputDialog> {
       widget.slot.requiredLastInitial,
     );
     if (celebrity != null) {
-      Navigator.of(context).pop(celebrity);
+      Navigator.of(context).pop(CellInputAnswer(celebrity));
     } else {
       setState(() {
         _errorText = 'Not in our database — try another name';

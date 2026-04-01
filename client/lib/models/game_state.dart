@@ -8,6 +8,8 @@ class GameState {
   final List<String> columnLetters;
   final List<List<GameCell>> board;
   final int totalPlayableCells;
+  final int maxSkips;
+  int skipsUsed = 0;
   GamePhase phase;
   final DateTime startTime;
 
@@ -17,8 +19,12 @@ class GameState {
     required this.columnLetters,
     required this.board,
     required this.totalPlayableCells,
+    this.maxSkips = 2,
     this.phase = GamePhase.playing,
   }) : startTime = DateTime.now();
+
+  int get skipsRemaining => maxSkips - skipsUsed;
+  bool get canSkip => skipsRemaining > 0;
 
   int get completedSlots {
     int count = 0;

@@ -67,8 +67,11 @@ class GameCellWidget extends StatelessWidget {
         child: Text(
           slot.answer!.name,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+                fontWeight: slot.wasSkipped ? FontWeight.w400 : FontWeight.w600,
+                fontStyle: slot.wasSkipped ? FontStyle.italic : FontStyle.normal,
+                color: slot.wasSkipped
+                    ? NameDropTheme.hotCoral.withValues(alpha: 0.8)
+                    : Colors.white,
               ),
           textAlign: TextAlign.center,
           maxLines: 2,

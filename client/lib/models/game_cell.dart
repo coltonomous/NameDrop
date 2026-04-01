@@ -6,6 +6,7 @@ class CellSlot {
   final String requiredFirstInitial;
   final String requiredLastInitial;
   Celebrity? answer;
+  bool wasSkipped = false;
 
   CellSlot({
     required this.requiredFirstInitial,

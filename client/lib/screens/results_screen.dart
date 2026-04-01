@@ -52,6 +52,10 @@ class ResultsScreen extends StatelessWidget {
                       const Divider(color: NameDropTheme.dimGold, height: 24),
                       _statRow(
                           context, 'Slots Filled', '${gameState.completedSlots}'),
+                      if (gameState.skipsUsed > 0) ...[
+                        const Divider(color: NameDropTheme.dimGold, height: 24),
+                        _statRow(context, 'Skips Used', '${gameState.skipsUsed}'),
+                      ],
                       if (freeCells > 0) ...[
                         const Divider(color: NameDropTheme.dimGold, height: 24),
                         _statRow(context, 'Free Cells', '$freeCells'),

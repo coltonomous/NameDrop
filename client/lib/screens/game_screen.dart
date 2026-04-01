@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
@@ -60,7 +59,6 @@ class _GameScreenState extends State<GameScreen> {
       ),
       body: Column(
         children: [
-          // Progress bar
           LinearProgressIndicator(
             value: progress,
             backgroundColor: NameDropTheme.royalBlue,
@@ -91,22 +89,36 @@ class _GameScreenState extends State<GameScreen> {
     final slot = cell.nextUnfilledSlot;
     if (slot == null) return;
 
-    final celebrity = await _showInputDialog(slot);
-    if (celebrity == null) return;
+    final result = await _showInputDialog(slot);
+    if (result == null) return;
 
-    if (_usedNames.contains(celebrity.name.toLowerCase())) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${celebrity.name} has already been used!')),
-      );
-      return;
+    switch (result) {
+      case CellInputAnswer(:final celebrity):
+        if (_usedNames.contains(celebrity.name.toLowerCase())) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('${celebrity.name} has already been used!')),
+          );
+          return;
+        }
+        setState(() {
+          slot.answer = celebrity;
+          _usedNames.add(celebrity.name.toLowerCase());
+        });
+
+      case CellInputSkip():
+        final revealed = _pickRevealCelebrity(slot);
+        if (revealed == null) return;
+        setState(() {
+          slot.answer = revealed;
+          slot.wasSkipped = true;
+          _usedNames.add(revealed.name.toLowerCase());
+          _state.skipsUsed++;
+        });
     }
 
-    setState(() {
-      slot.answer = celebrity;
-      _usedNames.add(celebrity.name.toLowerCase());
-    });
-
+    // Prompt for the second slot if still unfilled.
     if (cell.nextUnfilledSlot != null) {
       await _onCellTap(row, col);
       return;
@@ -123,13 +135,25 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  Future<Celebrity?> _showInputDialog(CellSlot slot) {
-    return showModalBottomSheet<Celebrity>(
+  /// Pick a random celebrity for the slot that hasn't been used yet.
+  _pickRevealCelebrity(CellSlot slot) {
+    final candidates = widget.service
+        .getByInitials(slot.requiredFirstInitial, slot.requiredLastInitial)
+        .where((c) => !_usedNames.contains(c.name.toLowerCase()))
+        .toList();
+    if (candidates.isEmpty) return null;
+    candidates.shuffle();
+    return candidates.first;
+  }
+
+  Future<CellInputResult?> _showInputDialog(CellSlot slot) {
+    return showModalBottomSheet<CellInputResult>(
       context: context,
       isScrollControlled: true,
       builder: (_) => CellInputDialog(
         slot: slot,
         service: widget.service,
+        skipsRemaining: _state.skipsRemaining,
       ),
     );
   }

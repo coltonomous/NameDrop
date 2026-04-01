@@ -53,7 +53,7 @@ class _GameScreenState extends State<GameScreen> {
             child: Center(
               child: Text(
                 '$completed / $total',
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
           ),

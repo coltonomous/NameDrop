@@ -91,7 +91,7 @@ class CelebrityService {
   static String _sanitize(String name) {
     return name
         .trim()
-        .replaceAll(RegExp(r'[.,;:!?\'"""''`#@&*()[\]{}|\\/<>~^]'), '')
+        .replaceAll(RegExp(r'[.,;:!?\x27\x22\u2018\u2019\u201C\u201D`#@&*()[\]{}|\\/<>~^]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }

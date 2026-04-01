@@ -77,17 +77,24 @@ class CelebrityService {
   /// Check Wikipedia: verify the page exists and is about a person.
   Future<Celebrity?> _validateWikipedia(
       String name, String firstInitial, String lastInitial) async {
-    final trimmed = name.trim();
+    // Strip periods, commas, quotes, and other non-name characters.
+    final sanitized = name.trim()
+        .replaceAll(RegExp(r'[.,;:!?\'"""''`#@&*()[\]{}|\\/<>~^]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
 
     // Verify initials match before hitting the network.
-    final parts = trimmed.split(RegExp(r'\s+'));
+    final parts = sanitized.split(' ');
     if (parts.length < 2) return null;
     if (parts.first[0].toUpperCase() != firstInitial ||
         parts.last[0].toUpperCase() != lastInitial) {
       return null;
     }
 
-    final slug = trimmed.replaceAll(' ', '_');
+    // Title-case each word for the Wikipedia slug.
+    final slug = parts
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : w)
+        .join('_');
     final url = Uri.parse(
         'https://en.wikipedia.org/api/rest_v1/page/summary/$slug');
 

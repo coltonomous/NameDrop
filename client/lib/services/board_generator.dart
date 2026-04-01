@@ -82,26 +82,23 @@ class BoardGenerator {
       ..sort((a, b) => letterScores[b]!.compareTo(letterScores[a]!));
     final candidatePool = rankedLetters.take(max(gridSize * 4, 18)).toSet();
 
-    // Ensure vowels are in the pool.
+    // Ensure vowels are in the pool so they can appear naturally.
     candidatePool.addAll(_vowels.where((v) => letterScores[v]! > 0));
 
     List<String> bestRows = [];
     List<String> bestCols = [];
     int bestScore = -1;
 
-    // Vowels in the candidate pool, for guaranteed placement.
-    final poolVowels = candidatePool.where((l) => _vowels.contains(l)).toList();
-    final poolConsonants =
-        candidatePool.where((l) => !_vowels.contains(l)).toList();
-
     for (int attempt = 0; attempt < 100; attempt++) {
-      // Guarantee one random vowel per axis, fill the rest weighted.
-      final rows = _pickWithVowel(
-          poolVowels, poolConsonants, gridSize, letterScores);
-      final cols = _pickWithVowel(
-          poolVowels, poolConsonants, gridSize, letterScores);
+      final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
+      final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
 
-      int score = 0;
+      // Prefer boards with at least one vowel per axis, but don't reject those without.
+      final vowelBonus =
+          (rows.any((l) => _vowels.contains(l)) ? 1 : 0) +
+          (cols.any((l) => _vowels.contains(l)) ? 1 : 0);
+
+      int score = vowelBonus; // Small bonus for vowel presence.
       for (final r in rows) {
         for (final c in cols) {
           if (_service.hasCelebrities(r, c) &&
@@ -119,22 +116,6 @@ class BoardGenerator {
     }
 
     return (bestRows, bestCols);
-  }
-
-  /// Pick n letters: one random vowel, rest weighted from consonants.
-  List<String> _pickWithVowel(List<String> vowels, List<String> consonants,
-      int n, Map<String, int> scores) {
-    final shuffledVowels = List<String>.from(vowels)..shuffle(_random);
-    final vowel = shuffledVowels.first;
-
-    // Fill remaining slots from all non-vowel candidates, weighted.
-    final rest = _pickWeighted(
-        consonants.where((l) => l != vowel).toList(), n - 1, scores);
-
-    // Insert vowel at a random position.
-    final result = List<String>.from(rest);
-    result.insert(_random.nextInt(result.length + 1), vowel);
-    return result;
   }
 
   /// Pick n unique letters weighted by their scores.

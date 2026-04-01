@@ -1,29 +1,62 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:namedrop/models/celebrity.dart';
+import 'package:namedrop/models/game_cell.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const App());
+  test('Celebrity parses from JSON', () {
+    final json = {
+      'name': 'James Joyce',
+      'firstInitial': 'J',
+      'lastInitial': 'J',
+      'occupation': 'Writer',
+      'birthYear': 1882,
+      'hpi': 72.5,
+    };
+    final celebrity = Celebrity.fromJson(json);
+    expect(celebrity.name, 'James Joyce');
+    expect(celebrity.pairKey, 'JJ');
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('GameCell status transitions', () {
+    final cell = GameCell(
+      row: 0,
+      col: 0,
+      slotA: CellSlot(requiredFirstInitial: 'J', requiredLastInitial: 'K'),
+      slotB: CellSlot(requiredFirstInitial: 'K', requiredLastInitial: 'J'),
+    );
+    expect(cell.status, CellStatus.empty);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    cell.slotA.answer = const Celebrity(
+      name: 'John Kennedy',
+      firstInitial: 'J',
+      lastInitial: 'K',
+      occupation: 'Politician',
+      birthYear: 1917,
+      hpi: 80.0,
+    );
+    expect(cell.status, CellStatus.partial);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    cell.slotB.answer = const Celebrity(
+      name: 'Keanu Johansson',
+      firstInitial: 'K',
+      lastInitial: 'J',
+      occupation: 'Actor',
+      birthYear: 1964,
+      hpi: 50.0,
+    );
+    expect(cell.status, CellStatus.complete);
+  });
+
+  test('Free cell is always free', () {
+    final cell = GameCell(
+      row: 0,
+      col: 0,
+      slotA: CellSlot(requiredFirstInitial: 'X', requiredLastInitial: 'Q'),
+      slotB: CellSlot(requiredFirstInitial: 'Q', requiredLastInitial: 'X'),
+      isFree: true,
+    );
+    expect(cell.status, CellStatus.free);
+    expect(cell.nextUnfilledSlot, isNull);
   });
 }

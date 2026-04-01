@@ -1,0 +1,65 @@
+import 'package:flutter/material.dart';
+
+import '../models/game_state.dart';
+import 'axis_label.dart';
+import 'game_cell_widget.dart';
+
+class GameBoard extends StatelessWidget {
+  final GameState gameState;
+  final void Function(int row, int col) onCellTap;
+
+  const GameBoard({
+    super.key,
+    required this.gameState,
+    required this.onCellTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final gridSize = gameState.gridSize;
+    // +1 for axis label row/column
+    final totalSize = gridSize + 1;
+
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: Column(
+        children: List.generate(totalSize, (rowIndex) {
+          return Expanded(
+            child: Row(
+              children: List.generate(totalSize, (colIndex) {
+                return Expanded(child: _buildCell(rowIndex, colIndex));
+              }),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildCell(int rowIndex, int colIndex) {
+    // Top-left corner: empty
+    if (rowIndex == 0 && colIndex == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Top row: column labels
+    if (rowIndex == 0) {
+      return AxisLabel(gameState.columnLetters[colIndex - 1]);
+    }
+
+    // Left column: row labels
+    if (colIndex == 0) {
+      return AxisLabel(gameState.rowLetters[rowIndex - 1]);
+    }
+
+    // Game cell
+    final gameRow = rowIndex - 1;
+    final gameCol = colIndex - 1;
+    final cell = gameState.board[gameRow][gameCol];
+
+    return GameCellWidget(
+      cell: cell,
+      onTap: () => onCellTap(gameRow, gameCol),
+    );
+  }
+}

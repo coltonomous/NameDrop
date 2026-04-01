@@ -48,12 +48,6 @@ class _GameScreenState extends State<GameScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          if (!_state.rerollUsed)
-            IconButton(
-              icon: const Icon(Icons.casino, color: NameDropTheme.brightGold),
-              tooltip: 'Reroll a letter',
-              onPressed: _showRerollDialog,
-            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -64,6 +58,32 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
         ],
+        bottom: _state.rerollUsed
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(36),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: _showRerollDialog,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.casino, size: 14, color: NameDropTheme.brightGold),
+                        const SizedBox(width: 6),
+                        Text(
+                          'REROLL A LETTER',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: NameDropTheme.brightGold,
+                                letterSpacing: 1.5,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
       ),
       body: Column(
         children: [

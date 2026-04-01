@@ -1,0 +1,4 @@
+# Override GitHub language detection — this is a Dart/Flutter project
+*.cmake linguist-vendored
+*.mk linguist-vendored
+Makefile linguist-vendored

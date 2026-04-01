@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/game_cell.dart';
 import '../theme.dart';
 
-class GameCellWidget extends StatelessWidget {
+class GameCellWidget extends StatefulWidget {
   final GameCell cell;
   final void Function(CellSlot slot)? onSlotTap;
   final void Function(CellSlot slot)? onSlotClear;
@@ -16,9 +16,55 @@ class GameCellWidget extends StatelessWidget {
   });
 
   @override
+  State<GameCellWidget> createState() => _GameCellWidgetState();
+}
+
+class _GameCellWidgetState extends State<GameCellWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  int _previousFilledCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _pulseAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
+    _previousFilledCount = _filledCount;
+  }
+
+  int get _filledCount {
+    int count = 0;
+    if (widget.cell.slotA.isFilled) count++;
+    if (widget.cell.slotB.isFilled) count++;
+    return count;
+  }
+
+  @override
+  void didUpdateWidget(GameCellWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newCount = _filledCount;
+    if (newCount > _previousFilledCount && !widget.cell.isFree) {
+      _pulseController.forward(from: 0);
+    }
+    _previousFilledCount = newCount;
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     BoxDecoration decoration;
-    switch (cell.status) {
+    switch (widget.cell.status) {
       case CellStatus.complete:
         decoration = NameDropTheme.completedPanelDecoration;
       case CellStatus.partial:
@@ -29,15 +75,38 @@ class GameCellWidget extends StatelessWidget {
         decoration = NameDropTheme.panelDecoration;
     }
 
-    return Container(
-      margin: const EdgeInsets.all(2),
-      decoration: decoration,
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        final glowOpacity = (1 - _pulseAnimation.value) * 0.6;
+        final scale = 1.0 + (1 - _pulseAnimation.value) * 0.03;
+
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            decoration: decoration.copyWith(
+              boxShadow: glowOpacity > 0.01
+                  ? [
+                      BoxShadow(
+                        color: NameDropTheme.gold
+                            .withValues(alpha: glowOpacity),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: child,
+          ),
+        );
+      },
       child: _buildContent(context),
     );
   }
 
   Widget _buildContent(BuildContext context) {
-    if (cell.isFree) {
+    if (widget.cell.isFree) {
       return Center(
         child: Icon(Icons.star_rounded,
             size: 20, color: NameDropTheme.gold.withValues(alpha: 0.4)),
@@ -46,7 +115,7 @@ class GameCellWidget extends StatelessWidget {
 
     return Column(
       children: [
-        Expanded(child: _buildSlotArea(context, cell.slotA)),
+        Expanded(child: _buildSlotArea(context, widget.cell.slotA)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Divider(
@@ -55,7 +124,7 @@ class GameCellWidget extends StatelessWidget {
             color: NameDropTheme.gold.withValues(alpha: 0.3),
           ),
         ),
-        Expanded(child: _buildSlotArea(context, cell.slotB)),
+        Expanded(child: _buildSlotArea(context, widget.cell.slotB)),
       ],
     );
   }
@@ -63,8 +132,12 @@ class GameCellWidget extends StatelessWidget {
   Widget _buildSlotArea(BuildContext context, CellSlot slot) {
     return GestureDetector(
       onTap: slot.isFilled
-          ? (onSlotClear != null ? () => onSlotClear!(slot) : null)
-          : (onSlotTap != null ? () => onSlotTap!(slot) : null),
+          ? (widget.onSlotClear != null
+              ? () => widget.onSlotClear!(slot)
+              : null)
+          : (widget.onSlotTap != null
+              ? () => widget.onSlotTap!(slot)
+              : null),
       behavior: HitTestBehavior.opaque,
       child: Center(
         child: Padding(

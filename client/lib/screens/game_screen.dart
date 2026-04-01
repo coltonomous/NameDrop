@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
@@ -205,11 +206,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _openWikiUrl(String url) {
-    // Use url_launcher if available, otherwise show the URL.
-    // For web, we can use dart:html or just show a snackbar with the link.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(url), behavior: SnackBarBehavior.floating),
-    );
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   void _showRerollDialog() {

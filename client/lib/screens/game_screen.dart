@@ -41,6 +41,7 @@ class _GameScreenState extends State<GameScreen> {
     final progress = total > 0 ? completed / total : 0.0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('NAMEDROP'),
         leading: IconButton(

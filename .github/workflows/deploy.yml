@@ -30,7 +30,7 @@ jobs:
 
       - name: Build web
         working-directory: client
-        run: flutter build web --release --base-href /NameDrop/
+        run: flutter build web --release --base-href /NameDrop/ --dart-define=BUILD_SHA=${GITHUB_SHA::7} --dart-define=BUILD_NUM=${{ github.run_number }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

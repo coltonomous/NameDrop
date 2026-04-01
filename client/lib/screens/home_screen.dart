@@ -70,6 +70,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('NEW GAME'),
                 ),
+                const SizedBox(height: 32),
+                Text(
+                  _buildLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: NameDropTheme.dimGold,
+                        fontSize: 10,
+                      ),
+                ),
               ],
               ),
             ),
@@ -114,6 +122,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  static const _sha = String.fromEnvironment('BUILD_SHA', defaultValue: 'dev');
+  static const _num = String.fromEnvironment('BUILD_NUM', defaultValue: '0');
+  static String get _buildLabel => 'build #$_num ($_sha)';
 
   void _startGame() {
     final generator = BoardGenerator(widget.service);

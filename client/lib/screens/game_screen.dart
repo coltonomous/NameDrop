@@ -5,6 +5,7 @@ import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
+import '../services/stats_service.dart';
 import '../theme.dart';
 import '../widgets/cell_input_dialog.dart';
 import '../widgets/game_board.dart';
@@ -13,11 +14,13 @@ import 'results_screen.dart';
 class GameScreen extends StatefulWidget {
   final GameState gameState;
   final CelebrityService service;
+  final StatsService stats;
 
   const GameScreen({
     super.key,
     required this.gameState,
     required this.service,
+    required this.stats,
   });
 
   @override
@@ -39,11 +42,14 @@ class _GameScreenState extends State<GameScreen> {
     final completed = _state.completedSlots;
     final total = _state.totalPlayableSlots;
     final progress = total > 0 ? completed / total : 0.0;
+    final showReroll = !_state.isDaily && _state.canReroll;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: const Text('NAMEDROP'),
+        title: Text(_state.isDaily
+            ? 'DAILY #${_state.puzzleNumber}'
+            : 'NAMEDROP'),
         leading: IconButton(
           icon: const Icon(Icons.close, color: NameDropTheme.cream),
           onPressed: () => Navigator.of(context).pop(),
@@ -83,7 +89,7 @@ class _GameScreenState extends State<GameScreen> {
                           onSlotClear: _onSlotClear,
                         ),
                       ),
-                      if (_state.canReroll)
+                      if (showReroll)
                         Padding(
                           padding: const EdgeInsets.only(top: 12, bottom: 4),
                           child: OutlinedButton.icon(
@@ -148,11 +154,15 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     if (_state.isComplete) {
+      _state.finalElapsed = DateTime.now().difference(_state.startTime);
       _state.phase = GamePhase.complete;
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => ResultsScreen(gameState: _state),
+          builder: (_) => ResultsScreen(
+            gameState: _state,
+            stats: widget.stats,
+          ),
         ),
       );
     }

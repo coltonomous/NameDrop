@@ -6,14 +6,14 @@ import 'celebrity_service.dart';
 
 class BoardGenerator {
   final CelebrityService _service;
-  final Random _random = Random();
 
   static const _vowels = {'A', 'E', 'I', 'O', 'U'};
 
   BoardGenerator(this._service);
 
-  GameState generate(int gridSize) {
-    final letters = _selectLetters(gridSize);
+  GameState generate(int gridSize, {int? seed}) {
+    final random = seed != null ? Random(seed) : Random();
+    final letters = _selectLetters(gridSize, random);
     final rowLetters = letters.$1;
     final columnLetters = letters.$2;
 
@@ -63,7 +63,7 @@ class BoardGenerator {
   /// Select row and column letters. Letters CAN repeat across axes
   /// (enabling alliterative cells). Each axis gets at least one vowel.
   /// Selection is weighted toward letters with more coverage.
-  (List<String>, List<String>) _selectLetters(int gridSize) {
+  (List<String>, List<String>) _selectLetters(int gridSize, Random random) {
     // Build weighted scores for each letter.
     final letterScores = <String, int>{};
     for (int i = 0; i < 26; i++) {
@@ -90,8 +90,8 @@ class BoardGenerator {
     int bestScore = -1;
 
     for (int attempt = 0; attempt < 100; attempt++) {
-      final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
-      final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores);
+      final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
+      final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
 
       // Prefer boards with at least one vowel per axis, but don't reject those without.
       final vowelBonus =
@@ -120,7 +120,7 @@ class BoardGenerator {
 
   /// Pick n unique letters weighted by their scores.
   List<String> _pickWeighted(
-      List<String> pool, int n, Map<String, int> scores) {
+      List<String> pool, int n, Map<String, int> scores, Random random) {
     final picked = <String>[];
     final remaining = List<String>.from(pool);
 
@@ -128,7 +128,7 @@ class BoardGenerator {
       // Build cumulative weights.
       final totalWeight =
           remaining.fold<int>(0, (sum, l) => sum + (scores[l] ?? 1));
-      int target = _random.nextInt(totalWeight);
+      int target = random.nextInt(totalWeight);
 
       String selected = remaining.last;
       for (final letter in remaining) {

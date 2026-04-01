@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,6 +19,7 @@ class ValidationResult {
 class CelebrityService {
   final List<Celebrity> _celebrities = [];
   final Map<String, List<Celebrity>> _index = {};
+  final Map<String, Celebrity> _sessionCache = {};
 
   bool get isLoaded => _celebrities.isNotEmpty;
 
@@ -45,7 +47,7 @@ class CelebrityService {
   /// Validate a name: try Wikipedia first (for wiki link), then local DB.
   Future<ValidationResult> validate(
       String name, String firstInitial, String lastInitial) async {
-    final sanitized = _sanitize(name);
+    final sanitized = sanitize(name);
     if (sanitized.isEmpty) {
       return const ValidationResult.failure('Enter a first and last name');
     }
@@ -73,15 +75,24 @@ class CelebrityService {
           'Last name starts with $inputLast, need $lastInitial');
     }
 
+    // Check session cache before any network calls.
+    final cacheKey = normalize(sanitized);
+    if (_sessionCache.containsKey(cacheKey)) {
+      return ValidationResult.success(_sessionCache[cacheKey]!);
+    }
+
     // Try Wikipedia first so we always get a wiki link when online.
     final wiki = await _validateWikipedia(name, firstInitial, lastInitial);
-    if (wiki != null) return ValidationResult.success(wiki);
+    if (wiki != null) {
+      _sessionCache[cacheKey] = wiki;
+      return ValidationResult.success(wiki);
+    }
 
     // Fall back to local DB, with an optimistic wiki URL.
     final local = _validateLocal(name, firstInitial, lastInitial);
     if (local != null) {
-      final slug = _buildSlug(local.name);
-      return ValidationResult.success(Celebrity(
+      final slug = buildSlug(local.name);
+      final celebrity = Celebrity(
         name: local.name,
         firstInitial: local.firstInitial,
         lastInitial: local.lastInitial,
@@ -89,7 +100,9 @@ class CelebrityService {
         birthYear: local.birthYear,
         hpi: local.hpi,
         wikiUrl: 'https://en.wikipedia.org/wiki/$slug',
-      ));
+      );
+      _sessionCache[cacheKey] = celebrity;
+      return ValidationResult.success(celebrity);
     }
 
     if (parts.length > 2) {
@@ -107,15 +120,16 @@ class CelebrityService {
     final candidates = getByInitials(firstInitial, lastInitial);
     if (candidates.isEmpty) return null;
 
-    final normalized = _normalize(name.trim());
+    final normalized = normalize(name.trim());
     for (final c in candidates) {
-      if (_normalize(c.name) == normalized) return c;
+      if (normalize(c.name) == normalized) return c;
     }
     return null;
   }
 
   /// Strip diacritics, punctuation, and collapse whitespace.
-  static String _normalize(String s) {
+  @visibleForTesting
+  static String normalize(String s) {
     return s
         .toLowerCase()
         .replaceAll(RegExp(r'[àáâãäå]'), 'a')
@@ -131,7 +145,8 @@ class CelebrityService {
   }
 
   /// Sanitize input and build a Wikipedia-friendly slug.
-  static String _sanitize(String name) {
+  @visibleForTesting
+  static String sanitize(String name) {
     return name
         .trim()
         .replaceAll(RegExp(r'[.,;:!?\x27\x22\u2018\u2019\u201C\u201D`#@&*()[\]{}|\\/<>~^]'), '')
@@ -141,7 +156,8 @@ class CelebrityService {
 
   /// Build a Wikipedia URL slug. Capitalize first letter of each word,
   /// leave the rest as-is (preserves McDonald, DeVito, etc.).
-  static String _buildSlug(String name) {
+  @visibleForTesting
+  static String buildSlug(String name) {
     return name.split(RegExp(r'\s+')).map((w) {
       if (w.isEmpty) return w;
       return '${w[0].toUpperCase()}${w.substring(1)}';
@@ -151,7 +167,7 @@ class CelebrityService {
   /// Check Wikipedia: verify the page exists and is about a person.
   Future<Celebrity?> _validateWikipedia(
       String name, String firstInitial, String lastInitial) async {
-    final sanitized = _sanitize(name);
+    final sanitized = sanitize(name);
 
     // Verify initials match before hitting the network.
     final parts = sanitized.split(' ');
@@ -161,7 +177,7 @@ class CelebrityService {
       return null;
     }
 
-    final slug = _buildSlug(sanitized);
+    final slug = buildSlug(sanitized);
     final url = Uri.parse(
         'https://en.wikipedia.org/api/rest_v1/page/summary/$slug');
 
@@ -179,12 +195,12 @@ class CelebrityService {
         final pageUrl =
             data['content_urls']?['desktop']?['page'] as String?;
 
-        if (!_isPerson(description, extract)) return null;
+        if (!isPerson(description, extract)) return null;
 
         // Verify the page is about the person we searched for,
         // not a redirect to a group, place, or other entity.
-        final normalizedTitle = _normalize(title);
-        final normalizedInput = _normalize(sanitized);
+        final normalizedTitle = normalize(title);
+        final normalizedInput = normalize(sanitized);
         if (normalizedTitle != normalizedInput &&
             !normalizedTitle.contains(normalizedInput) &&
             !normalizedInput.contains(normalizedTitle)) {
@@ -195,7 +211,7 @@ class CelebrityService {
           name: title,
           firstInitial: firstInitial,
           lastInitial: lastInitial,
-          occupation: _formatDescription(
+          occupation: formatDescription(
               data['description'] as String? ?? ''),
           hpi: 0,
           wikiUrl: pageUrl,
@@ -208,7 +224,8 @@ class CelebrityService {
     return null;
   }
 
-  static bool _isPerson(String description, String extract) {
+  @visibleForTesting
+  static bool isPerson(String description, String extract) {
     const personIndicators = [
       'born', 'died', 'was a', 'is a', 'are a',
       'actor', 'actress', 'singer', 'musician', 'player', 'coach',
@@ -231,7 +248,8 @@ class CelebrityService {
     return personIndicators.any((indicator) => combined.contains(indicator));
   }
 
-  static String _formatDescription(String desc) {
+  @visibleForTesting
+  static String formatDescription(String desc) {
     if (desc.isEmpty) return 'Notable Person';
     return desc
         .split(' ')

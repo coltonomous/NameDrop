@@ -5,4 +5,4 @@ client/linux/** linguist-vendored
 client/windows/** linguist-vendored
 client/macos/** linguist-vendored
 client/web/** linguist-vendored
-server/** linguist-vendored
+

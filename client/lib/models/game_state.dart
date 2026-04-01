@@ -15,6 +15,11 @@ class GameState {
   GamePhase phase;
   final DateTime startTime;
 
+  bool isDaily;
+  int? puzzleNumber;
+  String? dailyDateKey;
+  Duration? finalElapsed;
+
   GameState({
     required this.gridSize,
     required this.rowLetters,
@@ -24,6 +29,9 @@ class GameState {
     this.maxSkips = 2,
     this.maxRerolls = 1,
     this.phase = GamePhase.playing,
+    this.isDaily = false,
+    this.puzzleNumber,
+    this.dailyDateKey,
   }) : startTime = DateTime.now();
 
   int get skipsRemaining => maxSkips - skipsUsed;
@@ -47,5 +55,5 @@ class GameState {
 
   bool get isComplete => completedSlots >= totalPlayableSlots;
 
-  Duration get elapsed => DateTime.now().difference(startTime);
+  Duration get elapsed => finalElapsed ?? DateTime.now().difference(startTime);
 }

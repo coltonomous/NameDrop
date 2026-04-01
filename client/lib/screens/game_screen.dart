@@ -82,13 +82,13 @@ class _GameScreenState extends State<GameScreen> {
                           onSlotClear: _onSlotClear,
                         ),
                       ),
-                      if (!_state.rerollUsed)
+                      if (_state.canReroll)
                         Padding(
                           padding: const EdgeInsets.only(top: 12, bottom: 4),
                           child: OutlinedButton.icon(
                             onPressed: _showRerollDialog,
                             icon: const Icon(Icons.casino, size: 16),
-                            label: const Text('REROLL A LETTER'),
+                            label: Text('REROLL A LETTER (${_state.rerollsRemaining})'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: NameDropTheme.brightGold,
                               side: const BorderSide(
@@ -293,7 +293,7 @@ class _GameScreenState extends State<GameScreen> {
           _rebuildCell(r, index);
         }
       }
-      _state.rerollUsed = true;
+      _state.rerollsUsed++;
       _recountPlayableCells();
     });
   }

@@ -9,8 +9,9 @@ class GameState {
   final List<List<GameCell>> board;
   int totalPlayableCells;
   final int maxSkips;
+  final int maxRerolls;
   int skipsUsed = 0;
-  bool rerollUsed = false;
+  int rerollsUsed = 0;
   GamePhase phase;
   final DateTime startTime;
 
@@ -21,11 +22,14 @@ class GameState {
     required this.board,
     required this.totalPlayableCells,
     this.maxSkips = 2,
+    this.maxRerolls = 1,
     this.phase = GamePhase.playing,
   }) : startTime = DateTime.now();
 
   int get skipsRemaining => maxSkips - skipsUsed;
   bool get canSkip => skipsRemaining > 0;
+  int get rerollsRemaining => maxRerolls - rerollsUsed;
+  bool get canReroll => rerollsRemaining > 0;
 
   int get completedSlots {
     int count = 0;

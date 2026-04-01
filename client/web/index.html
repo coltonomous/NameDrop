@@ -20,7 +20,7 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Fill the grid by naming celebrities whose initials match. New daily puzzle every day.">
   <meta name="theme-color" content="#0A1628">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- Open Graph -->
   <meta property="og:title" content="NameDrop — The Celebrity Initials Game">
@@ -46,6 +46,14 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <style>
+    html, body {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
   <script src="flutter_bootstrap.js" async></script>
   <!-- GoatCounter analytics — privacy-friendly, no cookies -->
   <script data-goatcounter="https://coltonomous.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

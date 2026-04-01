@@ -62,12 +62,9 @@ class GameCellWidget extends StatelessWidget {
 
   Widget _buildSlotArea(BuildContext context, CellSlot slot) {
     return GestureDetector(
-      onTap: !slot.isFilled && onSlotTap != null
-          ? () => onSlotTap!(slot)
-          : null,
-      onLongPress: slot.isFilled && onSlotClear != null
-          ? () => onSlotClear!(slot)
-          : null,
+      onTap: slot.isFilled
+          ? (onSlotClear != null ? () => onSlotClear!(slot) : null)
+          : (onSlotTap != null ? () => onSlotTap!(slot) : null),
       behavior: HitTestBehavior.opaque,
       child: Center(
         child: Padding(

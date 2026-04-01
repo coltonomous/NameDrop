@@ -57,32 +57,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
         ],
-        bottom: _state.rerollUsed
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(36),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: _showRerollDialog,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.casino, size: 14, color: NameDropTheme.brightGold),
-                        const SizedBox(width: 6),
-                        Text(
-                          'REROLL A LETTER',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: NameDropTheme.brightGold,
-                                letterSpacing: 1.5,
-                                fontSize: 11,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+      ),
       ),
       body: Column(
         children: [
@@ -98,10 +73,35 @@ class _GameScreenState extends State<GameScreen> {
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: GameBoard(
-                    gameState: _state,
-                    onSlotTap: _onSlotTap,
-                    onSlotClear: _onSlotClear,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: GameBoard(
+                          gameState: _state,
+                          onSlotTap: _onSlotTap,
+                          onSlotClear: _onSlotClear,
+                        ),
+                      ),
+                      if (!_state.rerollUsed)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 4),
+                          child: OutlinedButton.icon(
+                            onPressed: _showRerollDialog,
+                            icon: const Icon(Icons.casino, size: 16),
+                            label: const Text('REROLL A LETTER'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: NameDropTheme.brightGold,
+                              side: const BorderSide(
+                                  color: NameDropTheme.dimGold),
+                              textStyle: const TextStyle(
+                                letterSpacing: 1.5,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),

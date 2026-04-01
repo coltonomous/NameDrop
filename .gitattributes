@@ -1,4 +1,8 @@
-# Override GitHub language detection — this is a Dart/Flutter project
-*.cmake linguist-vendored
-*.mk linguist-vendored
-Makefile linguist-vendored
+# Mark Flutter platform boilerplate as vendored so GitHub detects Dart
+client/android/** linguist-vendored
+client/ios/** linguist-vendored
+client/linux/** linguist-vendored
+client/windows/** linguist-vendored
+client/macos/** linguist-vendored
+client/web/** linguist-vendored
+server/** linguist-vendored

@@ -107,9 +107,11 @@ class _GameCellWidgetState extends State<GameCellWidget>
 
   Widget _buildContent(BuildContext context) {
     if (widget.cell.isFree) {
+      final isWide = MediaQuery.of(context).size.width > 600;
       return Center(
         child: Icon(Icons.star_rounded,
-            size: 20, color: NameDropTheme.gold.withValues(alpha: 0.4)),
+            size: isWide ? 28 : 20,
+            color: NameDropTheme.gold.withValues(alpha: 0.4)),
       );
     }
 
@@ -149,6 +151,11 @@ class _GameCellWidgetState extends State<GameCellWidget>
   }
 
   Widget _buildSlotText(BuildContext context, CellSlot slot) {
+    final isWide = MediaQuery.of(context).size.width > 600;
+    final textStyle = isWide
+        ? Theme.of(context).textTheme.bodySmall
+        : Theme.of(context).textTheme.labelSmall;
+
     if (slot.isFilled) {
       final hasWiki = slot.answer?.wikiUrl != null;
       return Row(
@@ -158,7 +165,7 @@ class _GameCellWidgetState extends State<GameCellWidget>
           Flexible(
             child: Text(
               slot.answer!.name,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              style: textStyle?.copyWith(
                     fontWeight:
                         slot.wasSkipped ? FontWeight.w400 : FontWeight.w600,
                     fontStyle:
@@ -174,10 +181,10 @@ class _GameCellWidgetState extends State<GameCellWidget>
           ),
           if (hasWiki)
             Padding(
-              padding: const EdgeInsets.only(left: 2),
+              padding: const EdgeInsets.only(left: 3),
               child: Icon(
                 Icons.open_in_new,
-                size: 8,
+                size: isWide ? 12 : 8,
                 color: NameDropTheme.dimGold,
               ),
             ),
@@ -187,7 +194,7 @@ class _GameCellWidgetState extends State<GameCellWidget>
 
     return Text(
       slot.label,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      style: textStyle?.copyWith(
             color: NameDropTheme.dimGold,
             fontWeight: FontWeight.w500,
           ),

@@ -37,10 +37,11 @@ class CelebrityService {
       String name, String firstInitial, String lastInitial) async {
     if (name.trim().isEmpty) return null;
 
-    final local = _validateLocal(name, firstInitial, lastInitial);
-    if (local != null) return local;
+    // Try Wikipedia first so we always get a wiki link when online.
+    final wiki = await _validateWikipedia(name, firstInitial, lastInitial);
+    if (wiki != null) return wiki;
 
-    return _validateWikipedia(name, firstInitial, lastInitial);
+    return _validateLocal(name, firstInitial, lastInitial);
   }
 
   /// Normalized exact match: lowercase, strip diacritics and punctuation.

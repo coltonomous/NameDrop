@@ -79,8 +79,8 @@ void main() {
 
   group('isPerson', () {
     test('detects person from description keywords', () {
-      expect(CelebrityService.isPerson('american actor', ''), true);
-      expect(CelebrityService.isPerson('british singer', ''), true);
+      expect(CelebrityService.isPerson('actor', ''), true);
+      expect(CelebrityService.isPerson('singer', ''), true);
       expect(CelebrityService.isPerson('', 'she was born in 1990'), true);
     });
 
@@ -90,6 +90,19 @@ void main() {
       expect(
           CelebrityService.isPerson('programming language', 'released in 2020'),
           false);
+    });
+
+    test('rejects fictional characters', () {
+      expect(CelebrityService.isPerson('fictional character', ''), false);
+      expect(CelebrityService.isPerson('video game character', ''), false);
+      expect(CelebrityService.isPerson('anime character', ''), false);
+      expect(CelebrityService.isPerson('comic book superhero', ''), false);
+      expect(CelebrityService.isPerson('cartoon mascot', ''), false);
+    });
+
+    test('rejection overrides positive keywords in extract', () {
+      // Description says fictional, even if extract mentions "player"
+      expect(CelebrityService.isPerson('fictional character', 'is a player in the game'), false);
     });
 
     test('checks both description and extract', () {

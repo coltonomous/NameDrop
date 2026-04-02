@@ -226,6 +226,18 @@ class CelebrityService {
 
   @visibleForTesting
   static bool isPerson(String description, String extract) {
+    const rejectionKeywords = [
+      'fictional', 'character', 'video game', 'anime', 'manga',
+      'cartoon', 'comic book', 'superhero', 'supervillain',
+      'mythological', 'mythology', 'legendary creature',
+      'mascot', 'puppet', 'muppet',
+    ];
+
+    // Check description (short summary) for fictional/non-person markers.
+    if (rejectionKeywords.any((kw) => description.contains(kw))) {
+      return false;
+    }
+
     const personIndicators = [
       'born', 'died', 'was a', 'is a', 'are a',
       'actor', 'actress', 'singer', 'musician', 'player', 'coach',
@@ -240,8 +252,6 @@ class CelebrityService {
       'skater', 'golfer', 'racer', 'driver', 'cyclist',
       'astronaut', 'philosopher', 'historian', 'painter',
       'sculptor', 'dancer', 'choreographer', 'magician',
-      'american', 'british', 'canadian', 'australian', 'french',
-      'german', 'italian', 'spanish', 'japanese', 'brazilian',
     ];
 
     final combined = '$description $extract';

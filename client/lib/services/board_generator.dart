@@ -7,8 +7,6 @@ import 'celebrity_service.dart';
 class BoardGenerator {
   final CelebrityService _service;
 
-  static const _vowels = {'A', 'E', 'I', 'O', 'U'};
-
   BoardGenerator(this._service);
 
   GameState generate(int gridSize, {int? seed}) {
@@ -82,9 +80,6 @@ class BoardGenerator {
       ..sort((a, b) => letterScores[b]!.compareTo(letterScores[a]!));
     final candidatePool = rankedLetters.take(max(gridSize * 4, 18)).toSet();
 
-    // Ensure vowels are in the pool so they can appear naturally.
-    candidatePool.addAll(_vowels.where((v) => letterScores[v]! > 0));
-
     List<String> bestRows = [];
     List<String> bestCols = [];
     int bestScore = -1;
@@ -93,12 +88,7 @@ class BoardGenerator {
       final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
       final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
 
-      // Prefer boards with at least one vowel per axis, but don't reject those without.
-      final vowelBonus =
-          (rows.any((l) => _vowels.contains(l)) ? 1 : 0) +
-          (cols.any((l) => _vowels.contains(l)) ? 1 : 0);
-
-      int score = vowelBonus; // Small bonus for vowel presence.
+      int score = 0;
       for (final r in rows) {
         for (final c in cols) {
           if (_service.hasCelebrities(r, c) &&

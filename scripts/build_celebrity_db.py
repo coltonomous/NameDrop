@@ -30,6 +30,18 @@ OUTPUT_PATH = os.path.join(SCRIPT_DIR, "..", "client", "assets", "celebrities.js
 
 SUFFIXES_TO_STRIP = {"Jr.", "Sr.", "Jr", "Sr", "II", "III", "IV", "V"}
 
+# Title prefixes to strip — ordered longest first so multi-word titles
+# are matched before their single-word components.
+PREFIXES_TO_STRIP = [
+    "Holy Roman Emperor", "Holy Roman Empress",
+    "Emperor", "Empress", "King", "Queen", "Prince", "Princess",
+    "Pope", "Saint", "St.", "Duke", "Duchess", "Grand Duke",
+    "Count", "Countess", "Baron", "Baroness",
+    "Lord", "Lady", "Sir", "Dame",
+    "Sultan", "Caliph", "Shah", "Pharaoh", "Tsar", "Tsarina",
+    "Archbishop", "Bishop", "Cardinal",
+]
+
 # ---------------------------------------------------------------------------
 # ESPN configuration
 # ---------------------------------------------------------------------------
@@ -86,7 +98,15 @@ def process_name(name: str):
     Clean a name and extract initials.
     Returns (cleaned_name, first_initial, last_initial) or None.
     """
-    parts = name.strip().split()
+    cleaned = name.strip()
+
+    # Strip title prefixes (longest first to catch multi-word titles).
+    for prefix in PREFIXES_TO_STRIP:
+        if cleaned.startswith(prefix + " "):
+            cleaned = cleaned[len(prefix):].strip()
+            break  # Only strip one prefix
+
+    parts = cleaned.split()
     if len(parts) < 2:
         return None
     # Strip suffixes from the end

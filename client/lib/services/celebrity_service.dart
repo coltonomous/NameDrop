@@ -58,6 +58,12 @@ class CelebrityService {
           'Enter a first and last name');
     }
 
+    // Strip trailing suffixes so "Ken Griffey Jr" matches K.G.
+    const suffixes = {'jr', 'sr', 'ii', 'iii', 'iv', 'v'};
+    while (parts.length > 2 && suffixes.contains(parts.last.toLowerCase())) {
+      parts.removeLast();
+    }
+
     // Check initials match before doing any lookups.
     final inputFirst = parts.first[0].toUpperCase();
     final inputLast = parts.last[0].toUpperCase();

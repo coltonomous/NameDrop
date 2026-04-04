@@ -127,14 +127,6 @@ class _GameScreenState extends State<GameScreen> {
 
     switch (result) {
       case CellInputAnswer(:final celebrity):
-        if (_usedNames.contains(celebrity.name.toLowerCase())) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('${celebrity.name} has already been used!')),
-          );
-          return;
-        }
         setState(() {
           slot.answer = celebrity;
           _usedNames.add(celebrity.name.toLowerCase());
@@ -465,6 +457,7 @@ class _GameScreenState extends State<GameScreen> {
         slot: slot,
         service: widget.service,
         skipsRemaining: _state.skipsRemaining,
+        usedNames: _usedNames,
       ),
     );
   }

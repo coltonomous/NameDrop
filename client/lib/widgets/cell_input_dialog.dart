@@ -18,12 +18,14 @@ class CellInputDialog extends StatefulWidget {
   final CellSlot slot;
   final CelebrityService service;
   final int skipsRemaining;
+  final Set<String> usedNames;
 
   const CellInputDialog({
     super.key,
     required this.slot,
     required this.service,
     required this.skipsRemaining,
+    required this.usedNames,
   });
 
   @override
@@ -176,6 +178,14 @@ class _CellInputDialogState extends State<CellInputDialog>
     if (!mounted) return;
 
     if (result.isSuccess) {
+      if (widget.usedNames.contains(result.celebrity!.name.toLowerCase())) {
+        setState(() {
+          _isValidating = false;
+          _errorText = '${result.celebrity!.name} has already been used';
+        });
+        _shakeController.forward(from: 0);
+        return;
+      }
       Navigator.of(context).pop(CellInputAnswer(result.celebrity!));
     } else {
       setState(() {

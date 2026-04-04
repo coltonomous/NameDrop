@@ -109,22 +109,24 @@ class BoardGenerator {
   }
 
   /// Pick n unique letters weighted by their scores.
+  /// Uses square root of scores to flatten the distribution so
+  /// less-common letters appear more often.
   List<String> _pickWeighted(
       List<String> pool, int n, Map<String, int> scores, Random random) {
     final picked = <String>[];
     final remaining = List<String>.from(pool);
 
     for (int i = 0; i < n && remaining.isNotEmpty; i++) {
-      // Build cumulative weights.
-      final totalWeight =
-          remaining.fold<int>(0, (sum, l) => sum + (scores[l] ?? 1));
+      // Use sqrt to compress weight differences.
+      final weights = remaining.map((l) => sqrt(scores[l] ?? 1).ceil()).toList();
+      final totalWeight = weights.fold<int>(0, (sum, w) => sum + w);
       int target = random.nextInt(totalWeight);
 
       String selected = remaining.last;
-      for (final letter in remaining) {
-        target -= scores[letter] ?? 1;
+      for (int j = 0; j < remaining.length; j++) {
+        target -= weights[j];
         if (target < 0) {
-          selected = letter;
+          selected = remaining[j];
           break;
         }
       }

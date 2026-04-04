@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/board_generator.dart';
@@ -17,26 +19,31 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> {
   int _gridSize = 3;
+  late String _lastDateKey;
+  late Timer _dateCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _lastDateKey = DailyService.todayDateKey;
+    _dateCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        final current = DailyService.todayDateKey;
+        if (current != _lastDateKey) {
+          _lastDateKey = current;
+          setState(() {});
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _dateCheckTimer.cancel();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      setState(() {}); // Rebuild with fresh date
-    }
   }
 
   @override

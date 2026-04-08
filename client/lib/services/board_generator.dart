@@ -15,7 +15,6 @@ class BoardGenerator {
     final rowLetters = letters.$1;
     final columnLetters = letters.$2;
 
-    int playableCells = 0;
     final board = <List<GameCell>>[];
 
     for (int r = 0; r < gridSize; r++) {
@@ -29,8 +28,6 @@ class BoardGenerator {
         final hasA = _service.hasCelebrities(rowLetter, colLetter);
         final hasB = _service.hasCelebrities(colLetter, rowLetter);
         final isFree = !hasA || !hasB;
-
-        if (!isFree) playableCells++;
 
         row.add(GameCell(
           row: r,
@@ -54,9 +51,13 @@ class BoardGenerator {
       rowLetters: rowLetters,
       columnLetters: columnLetters,
       board: board,
-      totalPlayableCells: playableCells,
     );
   }
+
+  static const _vowels = {'A', 'E', 'I', 'O', 'U'};
+
+  static bool _hasVowel(List<String> letters) =>
+      letters.any((l) => _vowels.contains(l));
 
   /// Select row and column letters. Letters CAN repeat across axes
   /// (enabling alliterative cells). Each axis gets at least one vowel.
@@ -87,6 +88,9 @@ class BoardGenerator {
     for (int attempt = 0; attempt < 100; attempt++) {
       final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
       final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
+
+      // Reject candidates without at least one vowel per axis.
+      if (!_hasVowel(rows) || !_hasVowel(cols)) continue;
 
       int score = 0;
       for (final r in rows) {

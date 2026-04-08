@@ -5,28 +5,54 @@ import 'services/celebrity_service.dart';
 import 'services/stats_service.dart';
 import 'theme.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final service = CelebrityService();
-  final stats = StatsService();
-  await Future.wait([service.init(), stats.init()]);
-
-  runApp(NameDropApp(service: service, stats: stats));
+  runApp(const NameDropApp());
 }
 
-class NameDropApp extends StatelessWidget {
-  final CelebrityService service;
-  final StatsService stats;
+class NameDropApp extends StatefulWidget {
+  const NameDropApp({super.key});
 
-  const NameDropApp({super.key, required this.service, required this.stats});
+  @override
+  State<NameDropApp> createState() => _NameDropAppState();
+}
+
+class _NameDropAppState extends State<NameDropApp> {
+  late final Future<(CelebrityService, StatsService)> _initFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture = _init();
+  }
+
+  Future<(CelebrityService, StatsService)> _init() async {
+    final service = CelebrityService();
+    final stats = StatsService();
+    await Future.wait([service.init(), stats.init()]);
+    return (service, stats);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NameDrop',
       theme: NameDropTheme.build(),
-      home: HomeScreen(service: service, stats: stats),
+      home: FutureBuilder<(CelebrityService, StatsService)>(
+        future: _initFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              backgroundColor: NameDropTheme.navy,
+              body: Center(
+                child: CircularProgressIndicator(color: NameDropTheme.gold),
+              ),
+            );
+          }
+          final (service, stats) = snapshot.data!;
+          return HomeScreen(service: service, stats: stats);
+        },
+      ),
     );
   }
 }

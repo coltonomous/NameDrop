@@ -12,6 +12,7 @@ dependencies:
   google_fonts: ^6.2.1
   http: ^1.2.0
   shared_preferences: ^2.3.0
+  diacritic: ^0.1.5
   url_launcher: ^6.2.5
 
 dev_dependencies:

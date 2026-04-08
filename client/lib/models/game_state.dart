@@ -7,7 +7,15 @@ class GameState {
   final List<String> rowLetters;
   final List<String> columnLetters;
   final List<List<GameCell>> board;
-  int totalPlayableCells;
+  int get totalPlayableCells {
+    int count = 0;
+    for (final row in board) {
+      for (final cell in row) {
+        if (!cell.isFree) count++;
+      }
+    }
+    return count;
+  }
   final int maxSkips;
   final int maxRerolls;
   int skipsUsed = 0;
@@ -25,7 +33,6 @@ class GameState {
     required this.rowLetters,
     required this.columnLetters,
     required this.board,
-    required this.totalPlayableCells,
     this.maxSkips = 2,
     this.maxRerolls = 1,
     this.phase = GamePhase.playing,

@@ -21,16 +21,20 @@ class ResultsScreen extends StatefulWidget {
 
 class _ResultsScreenState extends State<ResultsScreen> {
   bool _copied = false;
+  bool _recorded = false;
 
   @override
   void initState() {
     super.initState();
-    widget.stats.recordGame(
-      gridSize: widget.gameState.gridSize,
-      elapsed: widget.gameState.elapsed,
-      isDaily: widget.gameState.isDaily,
-      dailyDateKey: widget.gameState.dailyDateKey,
-    );
+    if (!_recorded) {
+      _recorded = true;
+      widget.stats.recordGame(
+        gridSize: widget.gameState.gridSize,
+        elapsed: widget.gameState.elapsed,
+        isDaily: widget.gameState.isDaily,
+        dailyDateKey: widget.gameState.dailyDateKey,
+      );
+    }
   }
 
   @override

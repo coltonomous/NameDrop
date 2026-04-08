@@ -30,11 +30,18 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late GameState _state;
   final Set<String> _usedNames = {};
+  Future<void>? _revealDismissTimer;
 
   @override
   void initState() {
     super.initState();
     _state = widget.gameState;
+  }
+
+  @override
+  void dispose() {
+    _revealDismissTimer = null;
+    super.dispose();
   }
 
   @override
@@ -290,7 +297,7 @@ class _GameScreenState extends State<GameScreen> {
       ..._state.columnLetters,
     };
     final available = List.generate(26, (i) => String.fromCharCode(65 + i))
-        .where((l) => !usedLetters.contains(l) && widget.service.getByInitials(l, l).isNotEmpty || !usedLetters.contains(l))
+        .where((l) => !usedLetters.contains(l))
         .toList()
       ..shuffle();
 
@@ -317,7 +324,6 @@ class _GameScreenState extends State<GameScreen> {
         }
       }
       _state.rerollsUsed++;
-      _recountPlayableCells();
     });
   }
 
@@ -354,16 +360,6 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  void _recountPlayableCells() {
-    int count = 0;
-    for (final row in _state.board) {
-      for (final cell in row) {
-        if (!cell.isFree) count++;
-      }
-    }
-    _state.totalPlayableCells = count;
-  }
-
   Future<void> _showRevealAnimation(Celebrity celebrity) {
     return showGeneralDialog(
       context: context,
@@ -384,8 +380,8 @@ class _GameScreenState extends State<GameScreen> {
         );
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        Future.delayed(const Duration(milliseconds: 1800), () {
-          if (Navigator.of(context).canPop()) {
+        _revealDismissTimer = Future.delayed(const Duration(milliseconds: 1800), () {
+          if (mounted && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
         });
@@ -439,7 +435,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  _pickRevealCelebrity(CellSlot slot) {
+  Celebrity? _pickRevealCelebrity(CellSlot slot) {
     final candidates = widget.service
         .getByInitials(slot.requiredFirstInitial, slot.requiredLastInitial)
         .where((c) => !_usedNames.contains(c.name.toLowerCase()))

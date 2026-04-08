@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:diacritic/diacritic.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -136,15 +137,8 @@ class CelebrityService {
   /// Strip diacritics, punctuation, and collapse whitespace.
   @visibleForTesting
   static String normalize(String s) {
-    return s
+    return removeDiacritics(s)
         .toLowerCase()
-        .replaceAll(RegExp(r'[àáâãäå]'), 'a')
-        .replaceAll(RegExp(r'[èéêë]'), 'e')
-        .replaceAll(RegExp(r'[ìíîï]'), 'i')
-        .replaceAll(RegExp(r'[òóôõö]'), 'o')
-        .replaceAll(RegExp(r'[ùúûü]'), 'u')
-        .replaceAll(RegExp(r'[ñ]'), 'n')
-        .replaceAll(RegExp(r'[ç]'), 'c')
         .replaceAll(RegExp(r"[^a-z\s]"), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
@@ -223,8 +217,8 @@ class CelebrityService {
           wikiUrl: pageUrl,
         );
       }
-    } catch (_) {
-      // Network error or timeout — offline, fall through to local.
+    } catch (e) {
+      debugPrint('Wikipedia validation failed for "$name": $e');
     }
 
     return null;
@@ -258,6 +252,13 @@ class CelebrityService {
       'skater', 'golfer', 'racer', 'driver', 'cyclist',
       'astronaut', 'philosopher', 'historian', 'painter',
       'sculptor', 'dancer', 'choreographer', 'magician',
+      'researcher', 'professor', 'inventor', 'nobel', 'laureate',
+      'physician', 'surgeon', 'general', 'admiral', 'olympian',
+      'chancellor', 'governor', 'senator', 'minister', 'monarch',
+      'emperor', 'king', 'queen', 'prince', 'princess',
+      'explorer', 'missionary', 'theologian', 'mathematician',
+      'biologist', 'chemist', 'physicist', 'economist',
+      'psychologist', 'sociologist', 'architect', 'pilot',
     ];
 
     final combined = '$description $extract';

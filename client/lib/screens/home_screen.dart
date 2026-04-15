@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
 import '../services/daily_service.dart';
+import '../services/game_persistence_service.dart';
 import '../services/stats_service.dart';
 import '../theme.dart';
 import 'game_screen.dart';
@@ -12,8 +13,14 @@ import 'game_screen.dart';
 class HomeScreen extends StatefulWidget {
   final CelebrityService service;
   final StatsService stats;
+  final GamePersistenceService persistence;
 
-  const HomeScreen({super.key, required this.service, required this.stats});
+  const HomeScreen({
+    super.key,
+    required this.service,
+    required this.stats,
+    required this.persistence,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -51,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final puzzleNumber = DailyService.todayPuzzleNumber;
     final dailyCompleted =
         widget.stats.isDailyCompleted(DailyService.todayDateKey);
+    final savedInfo = widget.persistence.savedGameInfo;
 
     return Scaffold(
       body: FocusScope(
@@ -87,6 +95,54 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                     ),
                     const SizedBox(height: 48),
+
+                    // Resume saved game
+                    if (savedInfo != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _resumeSavedGame,
+                          icon: const Icon(Icons.play_arrow),
+                          label: Text(
+                            savedInfo['isDaily'] == true
+                                ? 'RESUME DAILY #${savedInfo['puzzleNumber']}'
+                                : 'RESUME ${savedInfo['gridSize']}x${savedInfo['gridSize']} GAME',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextButton(
+                        onPressed: () {
+                          widget.persistence.clear();
+                          setState(() {});
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: NameDropTheme.dimGold,
+                        ),
+                        child: const Text('DISCARD SAVED GAME'),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          const Expanded(
+                              child: Divider(color: NameDropTheme.dimGold)),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'NEW GAME',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: NameDropTheme.dimGold),
+                            ),
+                          ),
+                          const Expanded(
+                              child: Divider(color: NameDropTheme.dimGold)),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     // Daily puzzle button
                     SizedBox(
@@ -227,6 +283,27 @@ class _HomeScreenState extends State<HomeScreen> {
       String.fromEnvironment('BUILD_NUM', defaultValue: '0');
   static String get _buildLabel => 'build #$_num ($_sha)';
 
+  void _resumeSavedGame() {
+    final gameState = widget.persistence.load();
+    if (gameState == null) {
+      setState(() {}); // refresh UI if save was invalid
+      return;
+    }
+
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => GameScreen(
+              gameState: gameState,
+              service: widget.service,
+              stats: widget.stats,
+              persistence: widget.persistence,
+            ),
+          ),
+        )
+        .then((_) => setState(() {}));
+  }
+
   void _startDailyGame() {
     final generator = BoardGenerator(widget.service);
     final gameState = generator.generate(4, seed: DailyService.todaySeed);
@@ -234,30 +311,36 @@ class _HomeScreenState extends State<HomeScreen> {
     gameState.puzzleNumber = DailyService.todayPuzzleNumber;
     gameState.dailyDateKey = DailyService.todayDateKey;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => GameScreen(
-          gameState: gameState,
-          service: widget.service,
-          stats: widget.stats,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => GameScreen(
+              gameState: gameState,
+              service: widget.service,
+              stats: widget.stats,
+              persistence: widget.persistence,
+            ),
+          ),
+        )
+        .then((_) => setState(() {}));
   }
 
   void _startPracticeGame() {
     final generator = BoardGenerator(widget.service);
     final gameState = generator.generate(_gridSize);
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => GameScreen(
-          gameState: gameState,
-          service: widget.service,
-          stats: widget.stats,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => GameScreen(
+              gameState: gameState,
+              service: widget.service,
+              stats: widget.stats,
+              persistence: widget.persistence,
+            ),
+          ),
+        )
+        .then((_) => setState(() {}));
   }
 
   void _showStats() {

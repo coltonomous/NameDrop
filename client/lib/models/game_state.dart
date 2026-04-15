@@ -39,7 +39,8 @@ class GameState {
     this.isDaily = false,
     this.puzzleNumber,
     this.dailyDateKey,
-  }) : startTime = DateTime.now();
+    DateTime? startTime,
+  }) : startTime = startTime ?? DateTime.now();
 
   int get skipsRemaining => maxSkips - skipsUsed;
   bool get canSkip => skipsRemaining > 0;
@@ -63,4 +64,45 @@ class GameState {
   bool get isComplete => completedSlots >= totalPlayableSlots;
 
   Duration get elapsed => finalElapsed ?? DateTime.now().difference(startTime);
+
+  Map<String, dynamic> toJson() => {
+        'gridSize': gridSize,
+        'rowLetters': rowLetters,
+        'columnLetters': columnLetters,
+        'board': board
+            .map((row) => row.map((cell) => cell.toJson()).toList())
+            .toList(),
+        'maxSkips': maxSkips,
+        'maxRerolls': maxRerolls,
+        'skipsUsed': skipsUsed,
+        'rerollsUsed': rerollsUsed,
+        'isDaily': isDaily,
+        'puzzleNumber': puzzleNumber,
+        'dailyDateKey': dailyDateKey,
+        'elapsedSeconds': elapsed.inSeconds,
+      };
+
+  factory GameState.fromJson(Map<String, dynamic> json) {
+    final elapsedSeconds = json['elapsedSeconds'] as int;
+    final state = GameState(
+      gridSize: json['gridSize'] as int,
+      rowLetters: (json['rowLetters'] as List).cast<String>(),
+      columnLetters: (json['columnLetters'] as List).cast<String>(),
+      board: (json['board'] as List)
+          .map((row) => (row as List)
+              .map((cell) =>
+                  GameCell.fromJson(cell as Map<String, dynamic>))
+              .toList())
+          .toList(),
+      maxSkips: json['maxSkips'] as int,
+      maxRerolls: json['maxRerolls'] as int,
+      isDaily: json['isDaily'] as bool,
+      puzzleNumber: json['puzzleNumber'] as int?,
+      dailyDateKey: json['dailyDateKey'] as String?,
+      startTime: DateTime.now().subtract(Duration(seconds: elapsedSeconds)),
+    );
+    state.skipsUsed = json['skipsUsed'] as int;
+    state.rerollsUsed = json['rerollsUsed'] as int;
+    return state;
+  }
 }

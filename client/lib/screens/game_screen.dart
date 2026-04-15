@@ -5,6 +5,7 @@ import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
+import '../services/game_persistence_service.dart';
 import '../services/stats_service.dart';
 import '../theme.dart';
 import '../widgets/cell_input_dialog.dart';
@@ -15,12 +16,14 @@ class GameScreen extends StatefulWidget {
   final GameState gameState;
   final CelebrityService service;
   final StatsService stats;
+  final GamePersistenceService persistence;
 
   const GameScreen({
     super.key,
     required this.gameState,
     required this.service,
     required this.stats,
+    required this.persistence,
   });
 
   @override
@@ -36,6 +39,25 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _state = widget.gameState;
+    _rebuildUsedNames();
+    _saveState();
+  }
+
+  void _rebuildUsedNames() {
+    for (final row in _state.board) {
+      for (final cell in row) {
+        if (cell.slotA.answer != null) {
+          _usedNames.add(cell.slotA.answer!.name.toLowerCase());
+        }
+        if (cell.slotB.answer != null) {
+          _usedNames.add(cell.slotB.answer!.name.toLowerCase());
+        }
+      }
+    }
+  }
+
+  void _saveState() {
+    widget.persistence.save(_state);
   }
 
   @override
@@ -138,6 +160,7 @@ class _GameScreenState extends State<GameScreen> {
           slot.answer = celebrity;
           _usedNames.add(celebrity.name.toLowerCase());
         });
+        _saveState();
 
       case CellInputSkip():
         final revealed = _pickRevealCelebrity(slot);
@@ -150,11 +173,13 @@ class _GameScreenState extends State<GameScreen> {
           _usedNames.add(revealed.name.toLowerCase());
           _state.skipsUsed++;
         });
+        _saveState();
     }
 
     if (_state.isComplete) {
       _state.finalElapsed = DateTime.now().difference(_state.startTime);
       _state.phase = GamePhase.complete;
+      widget.persistence.clear();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -204,6 +229,7 @@ class _GameScreenState extends State<GameScreen> {
                 slot.answer = null;
                 slot.wasSkipped = false;
               });
+              _saveState();
             },
             style: TextButton.styleFrom(
                 foregroundColor: NameDropTheme.hotCoral),
@@ -297,7 +323,7 @@ class _GameScreenState extends State<GameScreen> {
       ..._state.columnLetters,
     };
     final available = List.generate(26, (i) => String.fromCharCode(65 + i))
-        .where((l) => !usedLetters.contains(l))
+        .where((l) => l != 'X' && !usedLetters.contains(l))
         .toList()
       ..shuffle();
 
@@ -325,6 +351,7 @@ class _GameScreenState extends State<GameScreen> {
       }
       _state.rerollsUsed++;
     });
+    _saveState();
   }
 
   void _clearCell(GameCell cell) {

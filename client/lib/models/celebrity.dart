@@ -27,6 +27,16 @@ class Celebrity {
         wikiUrl: json['wikiUrl'] as String?,
       );
 
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'firstInitial': firstInitial,
+        'lastInitial': lastInitial,
+        'occupation': occupation,
+        'birthYear': birthYear,
+        'hpi': hpi,
+        'wikiUrl': wikiUrl,
+      };
+
   String get pairKey => '$firstInitial$lastInitial';
 
   @override

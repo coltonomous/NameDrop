@@ -50,94 +50,105 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     return Scaffold(
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'BOARD\nCOMPLETE!',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        shadows: [
-                          Shadow(
-                            color: NameDropTheme.gold.withValues(alpha: 0.6),
-                            blurRadius: 24,
-                          ),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'BOARD\nCOMPLETE!',
+                    textAlign: TextAlign.center,
+                    style:
+                        Theme.of(context).textTheme.displayMedium?.copyWith(
+                              shadows: [
+                                Shadow(
+                                  color: NameDropTheme.gold
+                                      .withValues(alpha: 0.6),
+                                  blurRadius: 24,
+                                ),
+                              ],
+                            ),
+                  ),
+                  const SizedBox(height: 40),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: NameDropTheme.panelDecoration,
+                    child: Column(
+                      children: [
+                        _statRow(context, 'Grid',
+                            '${gs.gridSize} x ${gs.gridSize}'),
+                        const Divider(
+                            color: NameDropTheme.dimGold, height: 24),
+                        _statRow(
+                            context, 'Time', '${minutes}m ${seconds}s'),
+                        const Divider(
+                            color: NameDropTheme.dimGold, height: 24),
+                        _statRow(context, 'Slots Filled',
+                            '${gs.completedSlots}'),
+                        if (gs.skipsUsed > 0) ...[
+                          const Divider(
+                              color: NameDropTheme.dimGold, height: 24),
+                          _statRow(
+                              context, 'Skips Used', '${gs.skipsUsed}'),
                         ],
+                        if (freeCells > 0) ...[
+                          const Divider(
+                              color: NameDropTheme.dimGold, height: 24),
+                          _statRow(context, 'Free Cells', '$freeCells'),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Share card preview
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: NameDropTheme.navy,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: NameDropTheme.dimGold),
+                    ),
+                    child: Text(
+                      _buildShareCard(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.4,
+                        color: NameDropTheme.cream,
                       ),
-                ),
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: NameDropTheme.panelDecoration,
-                  child: Column(
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _statRow(context, 'Grid',
-                          '${gs.gridSize} x ${gs.gridSize}'),
-                      const Divider(color: NameDropTheme.dimGold, height: 24),
-                      _statRow(context, 'Time', '${minutes}m ${seconds}s'),
-                      const Divider(color: NameDropTheme.dimGold, height: 24),
-                      _statRow(
-                          context, 'Slots Filled', '${gs.completedSlots}'),
-                      if (gs.skipsUsed > 0) ...[
-                        const Divider(color: NameDropTheme.dimGold, height: 24),
-                        _statRow(context, 'Skips Used', '${gs.skipsUsed}'),
-                      ],
-                      if (freeCells > 0) ...[
-                        const Divider(color: NameDropTheme.dimGold, height: 24),
-                        _statRow(context, 'Free Cells', '$freeCells'),
-                      ],
+                      FilledButton.icon(
+                        onPressed: _share,
+                        icon: Icon(_copied ? Icons.check : Icons.share),
+                        label: Text(_copied ? 'COPIED!' : 'SHARE'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context)
+                              .popUntil((route) => route.isFirst);
+                        },
+                        icon: const Icon(Icons.replay),
+                        label: const Text('PLAY AGAIN'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: NameDropTheme.brightGold,
+                          side: const BorderSide(
+                              color: NameDropTheme.dimGold),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // Share card preview
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: NameDropTheme.navy,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: NameDropTheme.dimGold),
-                  ),
-                  child: Text(
-                    _buildShareCard(),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.4,
-                      color: NameDropTheme.cream,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _share,
-                      icon: Icon(_copied ? Icons.check : Icons.share),
-                      label: Text(_copied ? 'COPIED!' : 'SHARE'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context)
-                            .popUntil((route) => route.isFirst);
-                      },
-                      icon: const Icon(Icons.replay),
-                      label: const Text('PLAY AGAIN'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: NameDropTheme.brightGold,
-                        side: const BorderSide(color: NameDropTheme.dimGold),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

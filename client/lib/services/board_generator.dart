@@ -61,33 +61,30 @@ class BoardGenerator {
 
   /// Select row and column letters. Letters CAN repeat across axes
   /// (enabling alliterative cells). Each axis gets at least one vowel.
-  /// Selection is weighted toward letters with more coverage.
+  /// Letters are chosen uniformly at random (X is excluded).
   (List<String>, List<String>) _selectLetters(int gridSize, Random random) {
-    // Build weighted scores for each letter.
-    final letterScores = <String, int>{};
+    // Build pool: all letters except X, filtered to those with coverage.
+    final pool = <String>[];
     for (int i = 0; i < 26; i++) {
       final letter = String.fromCharCode(65 + i);
-      int score = 0;
+      if (letter == 'X') continue;
       for (int j = 0; j < 26; j++) {
         final other = String.fromCharCode(65 + j);
-        if (_service.hasCelebrities(letter, other)) score++;
-        if (_service.hasCelebrities(other, letter)) score++;
+        if (_service.hasCelebrities(letter, other) ||
+            _service.hasCelebrities(other, letter)) {
+          pool.add(letter);
+          break;
+        }
       }
-      letterScores[letter] = score;
     }
-
-    // Build candidate pool: top letters by score, with enough variety.
-    final rankedLetters = letterScores.keys.toList()
-      ..sort((a, b) => letterScores[b]!.compareTo(letterScores[a]!));
-    final candidatePool = rankedLetters.take(max(gridSize * 4, 18)).toSet();
 
     List<String> bestRows = [];
     List<String> bestCols = [];
     int bestScore = -1;
 
     for (int attempt = 0; attempt < 100; attempt++) {
-      final rows = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
-      final cols = _pickWeighted(candidatePool.toList(), gridSize, letterScores, random);
+      final rows = _pickUniform(pool, gridSize, random);
+      final cols = _pickUniform(pool, gridSize, random);
 
       // Reject candidates without at least one vowel per axis.
       if (!_hasVowel(rows) || !_hasVowel(cols)) continue;
@@ -112,31 +109,15 @@ class BoardGenerator {
     return (bestRows, bestCols);
   }
 
-  /// Pick n unique letters weighted by their scores.
-  /// Uses square root of scores to flatten the distribution so
-  /// less-common letters appear more often.
-  List<String> _pickWeighted(
-      List<String> pool, int n, Map<String, int> scores, Random random) {
+  /// Pick n unique letters uniformly at random from the pool.
+  List<String> _pickUniform(List<String> pool, int n, Random random) {
     final picked = <String>[];
     final remaining = List<String>.from(pool);
 
     for (int i = 0; i < n && remaining.isNotEmpty; i++) {
-      // Use sqrt to compress weight differences.
-      final weights = remaining.map((l) => sqrt(scores[l] ?? 1).ceil()).toList();
-      final totalWeight = weights.fold<int>(0, (sum, w) => sum + w);
-      int target = random.nextInt(totalWeight);
-
-      String selected = remaining.last;
-      for (int j = 0; j < remaining.length; j++) {
-        target -= weights[j];
-        if (target < 0) {
-          selected = remaining[j];
-          break;
-        }
-      }
-
-      picked.add(selected);
-      remaining.remove(selected);
+      final index = random.nextInt(remaining.length);
+      picked.add(remaining[index]);
+      remaining.removeAt(index);
     }
 
     return picked;

@@ -16,6 +16,26 @@ class CellSlot {
   bool get isFilled => answer != null;
 
   String get label => '${requiredFirstInitial}.${requiredLastInitial}.';
+
+  Map<String, dynamic> toJson() => {
+        'requiredFirstInitial': requiredFirstInitial,
+        'requiredLastInitial': requiredLastInitial,
+        'answer': answer?.toJson(),
+        'wasSkipped': wasSkipped,
+      };
+
+  factory CellSlot.fromJson(Map<String, dynamic> json) {
+    final slot = CellSlot(
+      requiredFirstInitial: json['requiredFirstInitial'] as String,
+      requiredLastInitial: json['requiredLastInitial'] as String,
+    );
+    if (json['answer'] != null) {
+      slot.answer =
+          Celebrity.fromJson(json['answer'] as Map<String, dynamic>);
+    }
+    slot.wasSkipped = json['wasSkipped'] as bool;
+    return slot;
+  }
 }
 
 class GameCell {
@@ -47,4 +67,20 @@ class GameCell {
     if (!slotB.isFilled) return slotB;
     return null;
   }
+
+  Map<String, dynamic> toJson() => {
+        'row': row,
+        'col': col,
+        'slotA': slotA.toJson(),
+        'slotB': slotB.toJson(),
+        'isFree': isFree,
+      };
+
+  factory GameCell.fromJson(Map<String, dynamic> json) => GameCell(
+        row: json['row'] as int,
+        col: json['col'] as int,
+        slotA: CellSlot.fromJson(json['slotA'] as Map<String, dynamic>),
+        slotB: CellSlot.fromJson(json['slotB'] as Map<String, dynamic>),
+        isFree: json['isFree'] as bool,
+      );
 }

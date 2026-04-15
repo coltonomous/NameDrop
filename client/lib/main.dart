@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'services/celebrity_service.dart';
+import 'services/game_persistence_service.dart';
 import 'services/stats_service.dart';
 import 'theme.dart';
 
@@ -18,7 +19,8 @@ class NameDropApp extends StatefulWidget {
 }
 
 class _NameDropAppState extends State<NameDropApp> {
-  late final Future<(CelebrityService, StatsService)> _initFuture;
+  late final Future<(CelebrityService, StatsService, GamePersistenceService)>
+      _initFuture;
 
   @override
   void initState() {
@@ -26,11 +28,13 @@ class _NameDropAppState extends State<NameDropApp> {
     _initFuture = _init();
   }
 
-  Future<(CelebrityService, StatsService)> _init() async {
+  Future<(CelebrityService, StatsService, GamePersistenceService)>
+      _init() async {
     final service = CelebrityService();
     final stats = StatsService();
-    await Future.wait([service.init(), stats.init()]);
-    return (service, stats);
+    final persistence = GamePersistenceService();
+    await Future.wait([service.init(), stats.init(), persistence.init()]);
+    return (service, stats, persistence);
   }
 
   @override
@@ -38,7 +42,8 @@ class _NameDropAppState extends State<NameDropApp> {
     return MaterialApp(
       title: 'NameDrop',
       theme: NameDropTheme.build(),
-      home: FutureBuilder<(CelebrityService, StatsService)>(
+      home: FutureBuilder<
+          (CelebrityService, StatsService, GamePersistenceService)>(
         future: _initFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -49,8 +54,12 @@ class _NameDropAppState extends State<NameDropApp> {
               ),
             );
           }
-          final (service, stats) = snapshot.data!;
-          return HomeScreen(service: service, stats: stats);
+          final (service, stats, persistence) = snapshot.data!;
+          return HomeScreen(
+            service: service,
+            stats: stats,
+            persistence: persistence,
+          );
         },
       ),
     );

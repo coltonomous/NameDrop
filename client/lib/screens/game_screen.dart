@@ -155,9 +155,11 @@ class _GameScreenState extends State<GameScreen> {
     if (result == null) return;
 
     switch (result) {
-      case CellInputAnswer(:final celebrity):
+      case CellInputAnswer(:final celebrity, :final corrected):
         setState(() {
           slot.answer = celebrity;
+          slot.wasCorrected = corrected;
+          if (corrected) _state.correctionsUsed++;
           _usedNames.add(celebrity.name.toLowerCase());
         });
         _saveState();
@@ -202,9 +204,12 @@ class _GameScreenState extends State<GameScreen> {
         title: Text('Clear ${slot.answer!.name}?',
             style: const TextStyle(color: NameDropTheme.cream)),
         content: Text(
-          slot.answer?.wikiUrl != null
-              ? 'This will remove the answer. You can also view their Wikipedia page.'
-              : 'This will remove the answer from this slot.',
+          (slot.answer?.wikiUrl != null
+                  ? 'This will remove the answer. You can also view their Wikipedia page.'
+                  : 'This will remove the answer from this slot.') +
+              (slot.wasCorrected
+                  ? ' The autocorrect time penalty still counts.'
+                  : ''),
           style: const TextStyle(color: NameDropTheme.brightGold),
         ),
         actions: [
@@ -228,6 +233,7 @@ class _GameScreenState extends State<GameScreen> {
                 if (slot.wasSkipped) _state.skipsUsed--;
                 slot.answer = null;
                 slot.wasSkipped = false;
+                slot.wasCorrected = false;
               });
               _saveState();
             },

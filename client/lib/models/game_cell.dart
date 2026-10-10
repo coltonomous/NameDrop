@@ -8,6 +8,9 @@ class CellSlot {
   Celebrity? answer;
   bool wasSkipped = false;
 
+  /// Filled by accepting an autocorrect for a misspelled name.
+  bool wasCorrected = false;
+
   CellSlot({
     required this.requiredFirstInitial,
     required this.requiredLastInitial,
@@ -22,6 +25,7 @@ class CellSlot {
         'requiredLastInitial': requiredLastInitial,
         'answer': answer?.toJson(),
         'wasSkipped': wasSkipped,
+        'wasCorrected': wasCorrected,
       };
 
   factory CellSlot.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,7 @@ class CellSlot {
           Celebrity.fromJson(json['answer'] as Map<String, dynamic>);
     }
     slot.wasSkipped = json['wasSkipped'] as bool;
+    slot.wasCorrected = json['wasCorrected'] as bool? ?? false;
     return slot;
   }
 }

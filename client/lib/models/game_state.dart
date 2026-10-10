@@ -20,6 +20,12 @@ class GameState {
   final int maxRerolls;
   int skipsUsed = 0;
   int rerollsUsed = 0;
+
+  /// Autocorrects accepted this game. Never refunded, even if the answer is
+  /// later cleared, so autocorrect can't be used to look up a spelling.
+  int correctionsUsed = 0;
+  static const correctionPenalty = Duration(seconds: 10);
+
   GamePhase phase;
   final DateTime startTime;
 
@@ -65,6 +71,11 @@ class GameState {
 
   Duration get elapsed => finalElapsed ?? DateTime.now().difference(startTime);
 
+  Duration get penalty => correctionPenalty * correctionsUsed;
+
+  /// Clock time plus autocorrect penalties: the time that gets recorded.
+  Duration get totalTime => elapsed + penalty;
+
   Map<String, dynamic> toJson() => {
         'gridSize': gridSize,
         'rowLetters': rowLetters,
@@ -76,6 +87,7 @@ class GameState {
         'maxRerolls': maxRerolls,
         'skipsUsed': skipsUsed,
         'rerollsUsed': rerollsUsed,
+        'correctionsUsed': correctionsUsed,
         'isDaily': isDaily,
         'puzzleNumber': puzzleNumber,
         'dailyDateKey': dailyDateKey,
@@ -103,6 +115,7 @@ class GameState {
     );
     state.skipsUsed = json['skipsUsed'] as int;
     state.rerollsUsed = json['rerollsUsed'] as int;
+    state.correctionsUsed = json['correctionsUsed'] as int? ?? 0;
     return state;
   }
 }

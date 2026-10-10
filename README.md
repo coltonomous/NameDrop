@@ -10,6 +10,8 @@ A celebrity initials word puzzle game built with Flutter. Fill a grid by naming 
 - Name a celebrity whose first and last initials match the letters for that cell (e.g., **B**rad **P**itt for a B-row, P-column)
 - Fill both slots in every cell to complete the board
 - Use **skips** (2 per game) to bypass tough cells or **reroll** a letter (1 per game, practice mode only)
+- Close on the spelling? You'll get a hint about which name is off. Fix it yourself, or tap **Autocorrect** to take the suggested name for a +10s time penalty
+- Answers are checked against Wikipedia, so nicknames and other names an article goes by count too (e.g., **K**ate **M**iddleton)
 
 ### Game Modes
 

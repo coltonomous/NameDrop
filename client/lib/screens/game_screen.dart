@@ -204,12 +204,13 @@ class _GameScreenState extends State<GameScreen> {
         title: Text('Clear ${slot.answer!.name}?',
             style: const TextStyle(color: NameDropTheme.cream)),
         content: Text(
-          (slot.answer?.wikiUrl != null
-                  ? 'This will remove the answer. You can also view their Wikipedia page.'
-                  : 'This will remove the answer from this slot.') +
-              (slot.wasCorrected
-                  ? ' The autocorrect time penalty still counts.'
-                  : ''),
+          [
+            slot.answer?.wikiUrl != null
+                ? 'This will remove the answer. You can also view their Wikipedia page.'
+                : 'This will remove the answer from this slot.',
+            if (slot.wasSkipped) "You won't get the skip back.",
+            if (slot.wasCorrected) 'The autocorrect time penalty still counts.',
+          ].join(' '),
           style: const TextStyle(color: NameDropTheme.brightGold),
         ),
         actions: [
@@ -230,7 +231,6 @@ class _GameScreenState extends State<GameScreen> {
               Navigator.of(ctx).pop();
               setState(() {
                 _usedNames.remove(slot.answer!.name.toLowerCase());
-                if (slot.wasSkipped) _state.skipsUsed--;
                 slot.answer = null;
                 slot.wasSkipped = false;
                 slot.wasCorrected = false;
@@ -363,11 +363,9 @@ class _GameScreenState extends State<GameScreen> {
   void _clearCell(GameCell cell) {
     if (cell.slotA.isFilled) {
       _usedNames.remove(cell.slotA.answer!.name.toLowerCase());
-      if (cell.slotA.wasSkipped) _state.skipsUsed--;
     }
     if (cell.slotB.isFilled) {
       _usedNames.remove(cell.slotB.answer!.name.toLowerCase());
-      if (cell.slotB.wasSkipped) _state.skipsUsed--;
     }
   }
 

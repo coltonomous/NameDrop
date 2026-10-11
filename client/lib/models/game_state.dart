@@ -18,6 +18,8 @@ class GameState {
   }
   final int maxSkips;
   final int maxRerolls;
+  /// Skips spent this game. Clearing a skipped answer doesn't refund it,
+  /// otherwise skip-then-clear would reveal names for free.
   int skipsUsed = 0;
   int rerollsUsed = 0;
 

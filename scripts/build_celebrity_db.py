@@ -100,10 +100,13 @@ def process_name(name: str):
     """
     cleaned = name.strip()
 
-    # Strip title prefixes (longest first to catch multi-word titles).
+    # Strip title prefixes (longest first to catch multi-word titles),
+    # unless the title is part of the name itself ("Queen of Sheba").
     for prefix in PREFIXES_TO_STRIP:
         if cleaned.startswith(prefix + " "):
-            cleaned = cleaned[len(prefix):].strip()
+            rest = cleaned[len(prefix):].strip()
+            if rest[:1].isupper():
+                cleaned = rest
             break  # Only strip one prefix
 
     parts = cleaned.split()

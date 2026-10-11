@@ -39,6 +39,16 @@ class Celebrity {
 
   String get pairKey => '$firstInitial$lastInitial';
 
+  Celebrity withWikiUrl(String url) => Celebrity(
+        name: name,
+        firstInitial: firstInitial,
+        lastInitial: lastInitial,
+        occupation: occupation,
+        birthYear: birthYear,
+        hpi: hpi,
+        wikiUrl: url,
+      );
+
   @override
   String toString() => '$name ($pairKey)';
 

@@ -24,6 +24,21 @@ class _Candidate {
   });
 }
 
+/// What Wikipedia said about a name.
+class WikiLookup {
+  /// The person found, if any.
+  final PersonMatch? person;
+
+  /// False when a request failed, so "nobody found" can't be trusted and the
+  /// lookup is worth retrying later.
+  final bool conclusive;
+
+  const WikiLookup(this.person) : conclusive = true;
+  const WikiLookup.unavailable()
+      : person = null,
+        conclusive = false;
+}
+
 /// Resolves a typed name to a person on Wikipedia.
 ///
 /// Typed names often aren't article titles: wrong capitalization
@@ -51,17 +66,17 @@ class WikipediaResolver {
           'User-Agent': 'NameDrop/1.0 (https://github.com/coltonomous/NameDrop)'
         };
 
-  /// Find the person [input] refers to. Returns a [NameMatchKind.match] when
-  /// the name is right, a [NameMatchKind.close] near miss when it looks like a
-  /// misspelling (only if [allowClose]), or null when nothing fits.
-  Future<PersonMatch?> resolve(
+  /// Find the person [input] refers to: a [NameMatchKind.match] when the name
+  /// is right, a [NameMatchKind.close] near miss when it looks like a
+  /// misspelling (only if [allowClose]), or nobody.
+  Future<WikiLookup> resolve(
     String input,
     String firstInitial,
     String lastInitial, {
     bool allowClose = true,
   }) async {
     final query = searchQuery(input);
-    if (query.isEmpty) return null;
+    if (query.isEmpty) return const WikiLookup(null);
     final variants = titleVariants(query);
 
     final results = await Future.wait([
@@ -78,12 +93,13 @@ class WikipediaResolver {
         'pslimit': '10',
       }),
     ]);
+    var complete = results.every((r) => r != null);
 
     final direct =
         _candidates(results[0], variants, input, firstInitial, lastInitial);
     final directMatch = await _firstHuman(direct.where((c) => c.match.isMatch));
     if (directMatch != null) {
-      return _toPersonMatch(directMatch, firstInitial, lastInitial);
+      return WikiLookup(_toPersonMatch(directMatch, firstInitial, lastInitial));
     }
 
     // Shortlist search hits whose titles look like the typed name.
@@ -104,16 +120,21 @@ class WikipediaResolver {
 
     var searched = const <_Candidate>[];
     if (searchTitles.isNotEmpty) {
-      searched = _candidates(await _queryPages(searchTitles), searchTitles,
-          input, firstInitial, lastInitial);
+      final pages = await _queryPages(searchTitles);
+      complete &= pages != null;
+      searched =
+          _candidates(pages, searchTitles, input, firstInitial, lastInitial);
       final searchMatch =
           await _firstHuman(searched.where((c) => c.match.isMatch));
       if (searchMatch != null) {
-        return _toPersonMatch(searchMatch, firstInitial, lastInitial);
+        return WikiLookup(
+            _toPersonMatch(searchMatch, firstInitial, lastInitial));
       }
     }
 
-    if (!allowClose) return null;
+    final notFound =
+        complete ? const WikiLookup(null) : const WikiLookup.unavailable();
+    if (!allowClose) return notFound;
     final seenUrls = <String>{};
     final close = [...direct, ...searched]
         .where((c) => c.match.isClose && seenUrls.add(c.url))
@@ -121,8 +142,8 @@ class WikipediaResolver {
       ..sort((a, b) => a.match.distance.compareTo(b.match.distance));
     final nearMiss = await _firstHuman(close);
     return nearMiss == null
-        ? null
-        : _toPersonMatch(nearMiss, firstInitial, lastInitial);
+        ? notFound
+        : WikiLookup(_toPersonMatch(nearMiss, firstInitial, lastInitial));
   }
 
   PersonMatch _toPersonMatch(

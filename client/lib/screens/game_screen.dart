@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -35,12 +37,23 @@ class _GameScreenState extends State<GameScreen> {
   final Set<String> _usedNames = {};
   Future<void>? _revealDismissTimer;
 
+  // Answers accepted without a Wikipedia link (offline answers, skip
+  // reveals) get one looked up in the background, retrying while offline.
+  static const _linkRetryMin = Duration(seconds: 15);
+  static const _linkRetryMax = Duration(minutes: 2);
+  Duration _linkRetryDelay = _linkRetryMin;
+  Timer? _linkRetryTimer;
+  bool _linking = false;
+  bool _relink = false;
+  final Set<String> _unlinkable = {};
+
   @override
   void initState() {
     super.initState();
     _state = widget.gameState;
     _rebuildUsedNames();
     _saveState();
+    _linkAnswers();
   }
 
   void _rebuildUsedNames() {
@@ -57,11 +70,68 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _saveState() {
+    // A finished game is cleared from storage; don't bring it back.
+    if (_state.phase == GamePhase.complete) return;
     widget.persistence.save(_state);
+  }
+
+  Iterable<CellSlot> get _slots sync* {
+    for (final row in _state.board) {
+      for (final cell in row) {
+        yield cell.slotA;
+        yield cell.slotB;
+      }
+    }
+  }
+
+  /// Fill in Wikipedia links for answers that don't have one yet. If
+  /// Wikipedia can't be reached, try again later with backoff.
+  Future<void> _linkAnswers() async {
+    if (_linking) {
+      _relink = true;
+      return;
+    }
+    _linking = true;
+    _linkRetryTimer?.cancel();
+    var offline = false;
+    do {
+      _relink = false;
+      for (final slot in _slots) {
+        final answer = slot.answer;
+        if (answer == null ||
+            answer.wikiUrl != null ||
+            _unlinkable.contains(answer.name)) {
+          continue;
+        }
+        final lookup = await widget.service.findWikiLink(answer);
+        if (!mounted || _state.phase == GamePhase.complete) return;
+        if (!lookup.conclusive) {
+          offline = true;
+          break;
+        }
+        final url = lookup.person?.celebrity.wikiUrl;
+        if (url == null) {
+          _unlinkable.add(answer.name);
+        } else if (identical(slot.answer, answer)) {
+          setState(() => slot.answer = answer.withWikiUrl(url));
+          _saveState();
+        }
+      }
+    } while (_relink && !offline);
+    _linking = false;
+
+    if (offline) {
+      _linkRetryTimer = Timer(_linkRetryDelay, _linkAnswers);
+      final next = _linkRetryDelay * 2;
+      _linkRetryDelay = next > _linkRetryMax ? _linkRetryMax : next;
+    } else {
+      _linkRetryDelay = _linkRetryMin;
+    }
   }
 
   @override
   void dispose() {
+    _linkRetryTimer?.cancel();
     _revealDismissTimer = null;
     super.dispose();
   }
@@ -163,6 +233,7 @@ class _GameScreenState extends State<GameScreen> {
           _usedNames.add(celebrity.name.toLowerCase());
         });
         _saveState();
+        _linkAnswers();
 
       case CellInputSkip():
         final revealed = _pickRevealCelebrity(slot);
@@ -176,6 +247,7 @@ class _GameScreenState extends State<GameScreen> {
           _state.skipsUsed++;
         });
         _saveState();
+        _linkAnswers();
     }
 
     if (_state.isComplete) {

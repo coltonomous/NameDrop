@@ -115,25 +115,19 @@ class CelebrityService {
 
     // Wikipedia first so we get a wiki link when online. No need to hunt
     // for near misses there if the local DB already knows the name.
-    final wiki = await _wiki
+    final lookup = await _wiki
         .resolve(name, firstInitial, lastInitial, allowClose: !localMatch)
-        .timeout(const Duration(seconds: 10), onTimeout: () => null);
+        .timeout(const Duration(seconds: 10),
+            onTimeout: () => const WikiLookup.unavailable());
+    final wiki = lookup.person;
 
     ValidationResult? result;
     if (wiki != null && wiki.match.isMatch) {
       result = ValidationResult.success(wiki.celebrity);
     } else if (localMatch) {
-      // Offline or not found on Wikipedia: use an optimistic wiki URL.
-      final c = local.celebrity;
-      result = ValidationResult.success(Celebrity(
-        name: c.name,
-        firstInitial: c.firstInitial,
-        lastInitial: c.lastInitial,
-        occupation: c.occupation,
-        birthYear: c.birthYear,
-        hpi: c.hpi,
-        wikiUrl: 'https://en.wikipedia.org/wiki/${buildSlug(c.name)}',
-      ));
+      // Offline, or Wikipedia didn't confirm them. Accept without a link
+      // rather than guess one; the game looks it up later (findWikiLink).
+      result = ValidationResult.success(local.celebrity);
     } else {
       final nearMisses = [
         if (local != null) local,
@@ -149,7 +143,8 @@ class CelebrityService {
     }
 
     if (result != null) {
-      _sessionCache[cacheKey] = result;
+      // Don't remember offline answers; Wikipedia may know better later.
+      if (lookup.conclusive) _sessionCache[cacheKey] = result;
       return result;
     }
 
@@ -160,6 +155,17 @@ class CelebrityService {
 
     return const ValidationResult.failure(
         "We don't know that one — try someone else");
+  }
+
+  /// Look up the Wikipedia page for someone who was accepted without one
+  /// (an offline answer or a skip reveal). An inconclusive result means
+  /// Wikipedia couldn't be reached and it's worth trying again later.
+  Future<WikiLookup> findWikiLink(Celebrity celebrity) {
+    return _wiki
+        .resolve(celebrity.name, celebrity.firstInitial, celebrity.lastInitial,
+            allowClose: false)
+        .timeout(const Duration(seconds: 10),
+            onTimeout: () => const WikiLookup.unavailable());
   }
 
   /// Best local DB entry for [name]: a match if there is one, otherwise the
@@ -201,16 +207,6 @@ class CelebrityService {
         .replaceAll(RegExp(r'[.,;:!?\x27\x22\u2018\u2019\u201C\u201D`#@&*()[\]{}|\\/<>~^]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-  }
-
-  /// Build a Wikipedia URL slug. Capitalize first letter of each word,
-  /// leave the rest as-is (preserves McDonald, DeVito, etc.).
-  @visibleForTesting
-  static String buildSlug(String name) {
-    return name.split(RegExp(r'\s+')).map((w) {
-      if (w.isEmpty) return w;
-      return '${w[0].toUpperCase()}${w.substring(1)}';
-    }).join('_');
   }
 
   Set<String> get availablePairs => _index.keys.toSet();

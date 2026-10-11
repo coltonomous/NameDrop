@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:namedrop/services/name_matcher.dart';
 import 'package:namedrop/services/wikipedia_resolver.dart';
 
 import 'fake_wikimedia.dart';
@@ -44,9 +45,16 @@ void main() {
     resolver = WikipediaResolver(client: wiki.client);
   });
 
+  Future<PersonMatch?> find(String name, String first, String last,
+      {bool allowClose = true}) async {
+    final lookup =
+        await resolver.resolve(name, first, last, allowClose: allowClose);
+    return lookup.person;
+  }
+
   group('resolve', () {
     test('finds an article by its exact title', () async {
-      final result = await resolver.resolve('Tom Hanks', 'T', 'H');
+      final result = await find('Tom Hanks', 'T', 'H');
       expect(result!.match.isMatch, isTrue);
       expect(result.celebrity.name, 'Tom Hanks');
       expect(result.celebrity.occupation, 'American Actor (born 1956)');
@@ -55,7 +63,7 @@ void main() {
     });
 
     test('accepts another name that redirects to the person', () async {
-      final result = await resolver.resolve('Kate Middleton', 'K', 'M');
+      final result = await find('Kate Middleton', 'K', 'M');
       expect(result!.match.isMatch, isTrue);
       expect(result.celebrity.name, 'Kate Middleton');
       expect(result.celebrity.wikiUrl,
@@ -63,30 +71,28 @@ void main() {
     });
 
     test('accepts an alias typed in lowercase', () async {
-      final result = await resolver.resolve('kate middleton', 'K', 'M');
+      final result = await find('kate middleton', 'K', 'M');
       expect(result!.celebrity.name, 'Kate Middleton');
     });
 
     test('keeps apostrophes, including curly ones from phone keyboards',
         () async {
-      final result = await resolver.resolve('Shaquille O’Neal', 'S', 'O');
+      final result = await find('Shaquille O’Neal', 'S', 'O');
       expect(result!.match.isMatch, isTrue);
       expect(result.celebrity.name, "Shaquille O'Neal");
     });
 
     test('treats a redirect from a misspelling as a near miss', () async {
-      final result = await resolver.resolve('Arnold Swarzenegger', 'A', 'S');
+      final result = await find('Arnold Swarzenegger', 'A', 'S');
       expect(result!.match.isClose, isTrue);
       expect(result.celebrity.name, 'Arnold Schwarzenegger');
 
-      expect(
-          await resolver.resolve('Arnold Swarzenegger', 'A', 'S',
-              allowClose: false),
+      expect(await find('Arnold Swarzenegger', 'A', 'S', allowClose: false),
           isNull);
     });
 
     test('searches past a disambiguation page', () async {
-      final result = await resolver.resolve('Chris Evans', 'C', 'E');
+      final result = await find('Chris Evans', 'C', 'E');
       expect(result!.match.isMatch, isTrue);
       expect(result.celebrity.name, 'Chris Evans');
       expect(result.celebrity.wikiUrl,
@@ -94,41 +100,55 @@ void main() {
     });
 
     test('searches when capitalization differs from the title', () async {
-      final result = await resolver.resolve('leonardo dicaprio', 'L', 'D');
+      final result = await find('leonardo dicaprio', 'L', 'D');
       expect(result!.match.isMatch, isTrue);
       expect(result.celebrity.name, 'Leonardo DiCaprio');
     });
 
     test('suggests a near miss from fuzzy search', () async {
-      final result = await resolver.resolve('Jon Lenon', 'J', 'L');
+      final result = await find('Jon Lenon', 'J', 'L');
       expect(result!.match.isClose, isTrue);
       expect(result.match.distance, 2);
       expect(result.celebrity.name, 'John Lennon');
     });
 
     test('ignores near misses with the wrong initials', () async {
-      expect(await resolver.resolve('Cris Jenner', 'C', 'J'), isNull);
+      expect(await find('Cris Jenner', 'C', 'J'), isNull);
     });
 
     test('rejects pages that are not about a human', () async {
-      expect(await resolver.resolve('Costa Rica', 'C', 'R'), isNull);
-      expect(await resolver.resolve('Simon Garfunkel', 'S', 'G'), isNull);
+      expect(await find('Costa Rica', 'C', 'R'), isNull);
+      expect(await find('Simon Garfunkel', 'S', 'G'), isNull);
     });
 
     test('rejects redirects into a section of a person article', () async {
-      expect(await resolver.resolve('Kylie Cosmetics', 'K', 'C'), isNull);
+      expect(await find('Kylie Cosmetics', 'K', 'C'), isNull);
     });
 
     test('falls back to the description when Wikidata is down', () async {
       wiki.wikidataDown = true;
-      expect((await resolver.resolve('Tom Hanks', 'T', 'H'))!.match.isMatch,
-          isTrue);
-      expect(await resolver.resolve('Costa Rica', 'C', 'R'), isNull);
+      expect((await find('Tom Hanks', 'T', 'H'))!.match.isMatch, isTrue);
+      expect(await find('Costa Rica', 'C', 'R'), isNull);
     });
 
-    test('returns null when offline', () async {
+    test('a miss is conclusive when Wikipedia answered', () async {
+      final lookup = await resolver.resolve('Costa Rica', 'C', 'R');
+      expect(lookup.person, isNull);
+      expect(lookup.conclusive, isTrue);
+    });
+
+    test('a miss is inconclusive when offline', () async {
       wiki.offline = true;
-      expect(await resolver.resolve('Tom Hanks', 'T', 'H'), isNull);
+      final lookup = await resolver.resolve('Tom Hanks', 'T', 'H');
+      expect(lookup.person, isNull);
+      expect(lookup.conclusive, isFalse);
+    });
+
+    test('a miss is inconclusive when search was unavailable', () async {
+      wiki.searchDown = true;
+      final lookup = await resolver.resolve('Chris Evans', 'C', 'E');
+      expect(lookup.person, isNull);
+      expect(lookup.conclusive, isFalse);
     });
   });
 

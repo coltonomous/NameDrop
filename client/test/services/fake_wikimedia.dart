@@ -19,6 +19,7 @@ class FakeWikimedia {
   final Map<String, List<String>> prefixSearch = {};
 
   bool wikidataDown = false;
+  bool searchDown = false;
   bool offline = false;
   final List<Uri> requests = [];
 
@@ -57,6 +58,7 @@ class FakeWikimedia {
 
     if (params.containsKey('titles')) return _json(_pages(params['titles']!));
     if (params.containsKey('list')) {
+      if (searchDown) return http.Response('Service Unavailable', 503);
       return _json({
         'batchcomplete': true,
         'query': {

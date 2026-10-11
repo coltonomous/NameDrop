@@ -21,11 +21,38 @@ void main() {
       await service.init();
     });
 
-    test('accepts a known name offline', () async {
+    test('accepts a known name offline, without guessing a link', () async {
       wiki.offline = true;
       final result = await service.validate('Tom Hanks', 'T', 'H');
       expect(result.celebrity?.name, 'Tom Hanks');
-      expect(result.celebrity?.wikiUrl, 'https://en.wikipedia.org/wiki/Tom_Hanks');
+      expect(result.celebrity?.wikiUrl, isNull);
+    });
+
+    test("doesn't remember answers checked offline", () async {
+      wiki.offline = true;
+      await service.validate('Tom Hanks', 'T', 'H');
+
+      wiki
+        ..offline = false
+        ..addPerson('Tom Hanks', 'American actor (born 1956)', 'Q2263');
+      final result = await service.validate('Tom Hanks', 'T', 'H');
+      expect(result.celebrity?.wikiUrl,
+          'https://en.wikipedia.org/wiki/Tom_Hanks');
+    });
+
+    test('finds the link for an answer once back online', () async {
+      wiki.offline = true;
+      final answer =
+          (await service.validate('John Kennedy', 'J', 'K')).celebrity!;
+      expect(answer.wikiUrl, isNull);
+      expect((await service.findWikiLink(answer)).conclusive, isFalse);
+
+      wiki
+        ..offline = false
+        ..addPerson('John F. Kennedy', 'President of the United States', 'Q9696');
+      final lookup = await service.findWikiLink(answer);
+      expect(lookup.person?.celebrity.wikiUrl,
+          'https://en.wikipedia.org/wiki/John_F._Kennedy');
     });
 
     test('accepts a name without its middle initial offline', () async {
@@ -122,27 +149,6 @@ void main() {
 
     test('preserves basic letters and numbers', () {
       expect(CelebrityService.sanitize('John Smith Jr'), 'John Smith Jr');
-    });
-  });
-
-  group('buildSlug', () {
-    test('capitalizes first letter of each word', () {
-      expect(CelebrityService.buildSlug('john smith'), 'John_Smith');
-    });
-
-    test('preserves internal casing (McDonald, DeVito)', () {
-      expect(CelebrityService.buildSlug('mcDonald'), 'McDonald');
-      expect(CelebrityService.buildSlug('robert de niro'), 'Robert_De_Niro');
-    });
-
-    test('joins words with underscores', () {
-      expect(
-          CelebrityService.buildSlug('martin luther king'),
-          'Martin_Luther_King');
-    });
-
-    test('handles single word', () {
-      expect(CelebrityService.buildSlug('madonna'), 'Madonna');
     });
   });
 

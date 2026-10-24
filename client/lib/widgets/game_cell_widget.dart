@@ -162,6 +162,15 @@ class _GameCellWidgetState extends State<GameCellWidget>
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (slot.wasCorrected)
+            Padding(
+              padding: const EdgeInsets.only(right: 3),
+              child: Icon(
+                Icons.spellcheck,
+                size: isWide ? 12 : 8,
+                color: NameDropTheme.brightGold,
+              ),
+            ),
           Flexible(
             child: Text(
               slot.answer!.name,

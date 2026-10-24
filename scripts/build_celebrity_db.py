@@ -4,16 +4,23 @@ Build celebrity database for the NameDrop game.
 
 Sources:
   1. ESPN Active Athletes (NFL, NBA, MLB, NHL) via public API
-  2. Pantheon dataset (cached locally as bz2)
+  2. Pantheon dataset (downloaded and cached locally as bz2)
+
+Everyone is ranked by how often their English Wikipedia article is read
+(average daily page views over the last 60 days) and only the best known
+MAX_ENTRIES are kept, so the list is people players are likely to know
+rather than every active roster player.
 
 Outputs a minified JSON array to client/assets/celebrities.json.
-ESPN results are cached locally to avoid re-fetching on re-runs.
+ESPN results and page views are cached locally to avoid re-fetching.
 """
 
+import argparse
 import json
 import os
 import string
 import time
+import urllib.request
 from collections import defaultdict
 from datetime import datetime
 
@@ -25,8 +32,25 @@ import requests
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PANTHEON_PATH = os.path.join(SCRIPT_DIR, "person_2025_update.csv.bz2")
+PANTHEON_URL = "https://storage.googleapis.com/pantheon-public-data/person_2025_update.csv.bz2"
 ESPN_CACHE_PATH = os.path.join(SCRIPT_DIR, "espn_athletes_cache.json")
+PAGEVIEWS_CACHE_PATH = os.path.join(SCRIPT_DIR, "pageviews_cache.json")
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, "..", "client", "assets", "celebrities.json")
+
+# How many of the best-known people to keep.
+MAX_ENTRIES = 5000
+
+WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
+USER_AGENT = "NameDropDBBuilder/1.0 (https://github.com/coltonomous/NameDrop)"
+WIKI_BATCH = 50  # Most pages the API takes per request.
+
+# Article title qualifiers Wikipedia uses for athletes who share a name.
+LEAGUE_QUALIFIERS = {
+    "NFL Player": "American football",
+    "NBA Player": "basketball",
+    "MLB Player": "baseball",
+    "NHL Player": "ice hockey",
+}
 
 SUFFIXES_TO_STRIP = {"Jr.", "Sr.", "Jr", "Sr", "II", "III", "IV", "V"}
 
@@ -100,10 +124,13 @@ def process_name(name: str):
     """
     cleaned = name.strip()
 
-    # Strip title prefixes (longest first to catch multi-word titles).
+    # Strip title prefixes (longest first to catch multi-word titles),
+    # unless the title is part of the name itself ("Queen of Sheba").
     for prefix in PREFIXES_TO_STRIP:
         if cleaned.startswith(prefix + " "):
-            cleaned = cleaned[len(prefix):].strip()
+            rest = cleaned[len(prefix):].strip()
+            if rest[:1].isupper():
+                cleaned = rest
             break  # Only strip one prefix
 
     parts = cleaned.split()
@@ -225,44 +252,58 @@ def fetch_espn_athletes() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Pantheon processing
 # ---------------------------------------------------------------------------
+def ensure_pantheon():
+    """Download the Pantheon dataset if it isn't cached locally."""
+    if os.path.exists(PANTHEON_PATH):
+        return
+    print(f"Downloading Pantheon dataset from {PANTHEON_URL} ...")
+    urllib.request.urlretrieve(PANTHEON_URL, PANTHEON_PATH)
+
+
 def load_pantheon() -> list[dict]:
     """
     Load and filter the Pantheon dataset per tier rules.
     Returns a list of celebrity dicts.
     """
+    ensure_pantheon()
     print(f"\nReading Pantheon CSV from {PANTHEON_PATH} ...")
     df = pd.read_csv(PANTHEON_PATH, compression="bz2")
     print(f"  Total rows: {len(df)}")
 
     df = df.dropna(subset=["name", "hpi", "occupation"]).copy()
+    df = df[df["is_group"].astype(str).str.upper() != "TRUE"]
     df["_occ_upper"] = df["occupation"].str.strip().str.upper()
     df["_birth"] = pd.to_numeric(df["birthyear"], errors="coerce")
 
     selected_indices = set()
 
-    # Tier 1: Pop culture, born after 1900, top 5000 by HPI
+    # These tiers only pick candidates. Pantheon's HPI favors people known
+    # in many languages, so cast a wide net and let English page views
+    # decide who makes the final list.
+
+    # Tier 1: Pop culture, born after 1900
     pop = df[(df["_occ_upper"].isin(POP_CULTURE)) & (df["_birth"] > 1900)]
-    pop = pop.sort_values(by="hpi", ascending=False).head(5000)
+    pop = pop.sort_values(by="hpi", ascending=False).head(12000)
     selected_indices.update(pop.index)
-    print(f"  Tier 1 (pop culture, born>1900, top 5000): {len(pop)}")
+    print(f"  Tier 1 (pop culture, born>1900, top 12000): {len(pop)}")
 
-    # Tier 2: Public figures, born after 1900, top 1000 by HPI
+    # Tier 2: Public figures, born after 1900
     pub = df[(df["_occ_upper"].isin(PUBLIC_FIGURES)) & (df["_birth"] > 1900)]
-    pub = pub.sort_values(by="hpi", ascending=False).head(1000)
+    pub = pub.sort_values(by="hpi", ascending=False).head(3000)
     selected_indices.update(pub.index)
-    print(f"  Tier 2 (public figures, born>1900, top 1000): {len(pub)}")
+    print(f"  Tier 2 (public figures, born>1900, top 3000): {len(pub)}")
 
-    # Tier 3: Retired sports legends, born after 1900, top 1500 by HPI
+    # Tier 3: Retired sports legends, born after 1900
     # (Current athletes come from ESPN; this catches retired greats)
     sports = df[(df["_occ_upper"].isin(SPORTS)) & (df["_birth"] > 1900)]
-    sports = sports.sort_values(by="hpi", ascending=False).head(3000)
+    sports = sports.sort_values(by="hpi", ascending=False).head(6000)
     selected_indices.update(sports.index)
-    print(f"  Tier 3 (sports legends, born>1900, top 3000): {len(sports)}")
+    print(f"  Tier 3 (sports legends, born>1900, top 6000): {len(sports)}")
 
-    # Tier 4: All-time legends, top 500 regardless of category
-    legends = df.sort_values(by="hpi", ascending=False).head(500)
+    # Tier 4: All-time legends regardless of category
+    legends = df.sort_values(by="hpi", ascending=False).head(1000)
     selected_indices.update(legends.index)
-    print(f"  Tier 4 (all-time legends, top 500): {len(legends)}")
+    print(f"  Tier 4 (all-time legends, top 1000): {len(legends)}")
 
     combined = df.loc[list(selected_indices)].sort_values(by="hpi", ascending=False)
     print(f"  Combined unique Pantheon entries: {len(combined)}")
@@ -278,6 +319,7 @@ def load_pantheon() -> list[dict]:
             "occupation": occ_val,
             "birthYear": birth_val,
             "hpi": hpi_val,
+            "pageId": int(row["wp_id"]) if pd.notna(row["wp_id"]) else None,
             "source": "pantheon",
         })
 
@@ -285,75 +327,246 @@ def load_pantheon() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Merging & deduplication
+# Wikipedia page views
 # ---------------------------------------------------------------------------
-def merge_and_deduplicate(espn_athletes: list[dict], pantheon_entries: list[dict]) -> list[dict]:
+def _wiki_query(session, params: dict) -> dict:
     """
-    Merge ESPN and Pantheon sources, deduplicate by lowercase name,
-    apply name processing rules, and build final output records.
-    ESPN entries take priority (added first).
+    Run one Action API query, following continuation, and return the merged
+    {"pages": [...], "normalized": [...], "redirects": [...]}.
     """
-    seen_names = set()
+    merged = {"pages": {}, "normalized": [], "redirects": []}
+    cont = {}
+    while True:
+        for attempt in range(4):
+            try:
+                resp = session.get(
+                    WIKIPEDIA_API,
+                    params={**params, **cont, "format": "json", "formatversion": "2"},
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except Exception as e:
+                if attempt == 3:
+                    raise
+                print(f"  Wikipedia request failed ({e}); retrying...")
+                time.sleep(2 ** attempt)
+        query = data.get("query", {})
+        merged["normalized"] += query.get("normalized", [])
+        merged["redirects"] += query.get("redirects", [])
+        for page in query.get("pages", []):
+            key = page.get("pageid") or page.get("title")
+            seen = merged["pages"].setdefault(key, page)
+            if seen is not page:
+                seen["pageviews"] = {**(seen.get("pageviews") or {}), **(page.get("pageviews") or {})}
+                if "pageprops" in page:
+                    seen["pageprops"] = page["pageprops"]
+        if "continue" not in data:
+            break
+        cont = data["continue"]
+        time.sleep(0.1)
+    merged["pages"] = list(merged["pages"].values())
+    return merged
+
+
+def average_daily_views(page: dict) -> float:
+    """Average daily views over the days the API has data for."""
+    days = [v for v in (page.get("pageviews") or {}).values() if v is not None]
+    return sum(days) / len(days) if days else 0.0
+
+
+def _is_article(page: dict) -> bool:
+    return (
+        page.get("ns") == 0
+        and not page.get("missing")
+        and not page.get("invalid")
+        and "disambiguation" not in (page.get("pageprops") or {})
+    )
+
+
+def views_by_page_id(session, page_ids: list[int]) -> dict[int, float]:
+    """Average daily views for each English Wikipedia page id."""
+    views = {}
+    for i in range(0, len(page_ids), WIKI_BATCH):
+        batch = page_ids[i:i + WIKI_BATCH]
+        result = _wiki_query(session, {
+            "action": "query",
+            "prop": "pageviews",
+            "pageids": "|".join(str(p) for p in batch),
+        })
+        for page in result["pages"]:
+            if page.get("pageid") is not None:
+                views[page["pageid"]] = average_daily_views(page)
+        time.sleep(0.1)
+    return views
+
+
+def views_by_title(session, titles: list[str]) -> dict[str, tuple[int, float]]:
+    """
+    Look up titles (following redirects) and return {title: (page id,
+    average daily views)} for the ones that are real articles, not
+    disambiguation pages.
+    """
+    found = {}
+    for i in range(0, len(titles), WIKI_BATCH):
+        batch = titles[i:i + WIKI_BATCH]
+        result = _wiki_query(session, {
+            "action": "query",
+            "prop": "pageviews|pageprops",
+            "ppprop": "disambiguation",
+            "redirects": "1",
+            "titles": "|".join(batch),
+        })
+        normalized = {n["from"]: n["to"] for n in result["normalized"]}
+        redirects = {r["from"]: r["to"] for r in result["redirects"]}
+        pages = {p["title"]: p for p in result["pages"] if "title" in p}
+        for title in batch:
+            final = normalized.get(title, title)
+            final = redirects.get(final, final)
+            page = pages.get(final)
+            if page and _is_article(page):
+                found[title] = (page["pageid"], average_daily_views(page))
+        time.sleep(0.1)
+    return found
+
+
+def add_page_views(entries: list[dict], session) -> None:
+    """
+    Set "views" (average daily English Wikipedia views) and "pageId" on each
+    entry. Pantheon entries carry their page id. ESPN athletes are looked up
+    by name, then as e.g. "Name (American football)" if the plain name is
+    missing or ambiguous. Results are cached for a week.
+    """
+    cache = {}
+    if os.path.exists(PAGEVIEWS_CACHE_PATH):
+        age_hours = (time.time() - os.path.getmtime(PAGEVIEWS_CACHE_PATH)) / 3600
+        if age_hours < 168:
+            with open(PAGEVIEWS_CACHE_PATH, "r") as f:
+                cache = json.load(f)
+            print(f"Using page view cache ({age_hours:.1f}h old, {len(cache)} entries)")
+
+    def key(entry):
+        return f"id:{entry['pageId']}" if entry.get("pageId") else f"title:{entry['name']}"
+
+    todo = [e for e in entries if key(e) not in cache]
+
+    by_id = [e for e in todo if e.get("pageId")]
+    if by_id:
+        print(f"Fetching page views for {len(by_id)} pages by id...")
+        views = views_by_page_id(session, [e["pageId"] for e in by_id])
+        for e in by_id:
+            cache[key(e)] = [e["pageId"], views.get(e["pageId"], 0.0)]
+
+    by_name = [e for e in todo if not e.get("pageId")]
+    if by_name:
+        print(f"Fetching page views for {len(by_name)} pages by name...")
+        found = views_by_title(session, sorted({e["name"] for e in by_name}))
+        retry = defaultdict(list)
+        for e in by_name:
+            if e["name"] in found:
+                cache[key(e)] = list(found[e["name"]])
+            elif e.get("occupation") in LEAGUE_QUALIFIERS:
+                retry[f"{e['name']} ({LEAGUE_QUALIFIERS[e['occupation']]})"].append(e)
+            else:
+                cache[key(e)] = [None, 0.0]
+        if retry:
+            print(f"Retrying {len(retry)} names with a sport qualifier...")
+            found = views_by_title(session, sorted(retry))
+            for title, group in retry.items():
+                for e in group:
+                    cache[key(e)] = list(found.get(title, (None, 0.0)))
+
+    with open(PAGEVIEWS_CACHE_PATH, "w") as f:
+        json.dump(cache, f)
+
+    for e in entries:
+        page_id, views = cache[key(e)]
+        e["pageId"] = page_id
+        e["views"] = views
+
+
+# ---------------------------------------------------------------------------
+# Merging, ranking & deduplication
+# ---------------------------------------------------------------------------
+def prepare_candidates(espn_athletes: list[dict], pantheon_entries: list[dict]):
+    """
+    Apply name processing rules to both sources. Pantheon comes first so it
+    wins ties later (its entries have exact page ids and richer metadata).
+    """
+    candidates = []
+    stats = {"skipped_mono": 0, "skipped_initial": 0}
+    for entry in [*pantheon_entries, *espn_athletes]:
+        result = process_name(entry["name"])
+        if result is None:
+            parts = entry["name"].strip().split()
+            if len(parts) < 2:
+                stats["skipped_mono"] += 1
+            else:
+                stats["skipped_initial"] += 1
+            continue
+        cleaned_name, first_initial, last_initial = result
+        candidates.append({
+            **entry,
+            "name": cleaned_name,
+            "firstInitial": first_initial,
+            "lastInitial": last_initial,
+        })
+    return candidates, stats
+
+
+def rank_and_deduplicate(candidates: list[dict], max_entries: int, stats: dict) -> list[dict]:
+    """
+    Keep the best-known person for each name and each Wikipedia page, drop
+    anyone without page views, and keep the top max_entries by views.
+    """
+    stats.update({"skipped_dup": 0, "skipped_no_views": 0, "espn": 0, "pantheon": 0})
+    # Stable sort: on equal views, earlier (Pantheon) entries win.
+    ranked = sorted(candidates, key=lambda e: -e["views"])
+    seen_names, seen_pages, kept = set(), set(), []
+    for e in ranked:
+        if e["views"] <= 0:
+            stats["skipped_no_views"] += 1
+            continue
+        name_key = e["name"].lower()
+        if name_key in seen_names or (e.get("pageId") and e["pageId"] in seen_pages):
+            stats["skipped_dup"] += 1
+            continue
+        seen_names.add(name_key)
+        if e.get("pageId"):
+            seen_pages.add(e["pageId"])
+        kept.append(e)
+        if len(kept) == max_entries:
+            break
+
     celebrities = []
-    stats = {"espn": 0, "pantheon": 0, "skipped_mono": 0, "skipped_initial": 0, "skipped_dup": 0}
-
-    # Process ESPN first (higher priority for dedup)
-    for entry in espn_athletes:
-        result = process_name(entry["name"])
-        if result is None:
-            parts = entry["name"].strip().split()
-            if len(parts) < 2:
-                stats["skipped_mono"] += 1
-            else:
-                stats["skipped_initial"] += 1
-            continue
-
-        cleaned_name, first_initial, last_initial = result
-        name_key = cleaned_name.lower()
-        if name_key in seen_names:
-            stats["skipped_dup"] += 1
-            continue
-        seen_names.add(name_key)
-
+    for e in kept:
+        stats[e["source"]] += 1
         celebrities.append({
-            "name": cleaned_name,
-            "firstInitial": first_initial,
-            "lastInitial": last_initial,
-            "occupation": entry["occupation"],
-            "birthYear": entry.get("birthYear"),
-            "hpi": 0,
+            "name": e["name"],
+            "firstInitial": e["firstInitial"],
+            "lastInitial": e["lastInitial"],
+            "occupation": e["occupation"],
+            "birthYear": e.get("birthYear"),
+            "hpi": e.get("hpi", 0),
+            "views": round(e["views"]),
         })
-        stats["espn"] += 1
+    return celebrities
 
-    # Process Pantheon second
-    for entry in pantheon_entries:
-        result = process_name(entry["name"])
-        if result is None:
-            parts = entry["name"].strip().split()
-            if len(parts) < 2:
-                stats["skipped_mono"] += 1
-            else:
-                stats["skipped_initial"] += 1
-            continue
 
-        cleaned_name, first_initial, last_initial = result
-        name_key = cleaned_name.lower()
-        if name_key in seen_names:
-            stats["skipped_dup"] += 1
-            continue
-        seen_names.add(name_key)
-
-        celebrities.append({
-            "name": cleaned_name,
-            "firstInitial": first_initial,
-            "lastInitial": last_initial,
-            "occupation": entry["occupation"],
-            "birthYear": entry.get("birthYear"),
-            "hpi": entry.get("hpi", 0),
-        })
-        stats["pantheon"] += 1
-
-    return celebrities, stats
+def hard_letters(celebrities: list[dict]) -> list[str]:
+    """
+    Letters the game treats as hard (see BoardGenerator.findHardLetters):
+    they start under 30% as many first and last names as the median letter.
+    """
+    counts = defaultdict(int)
+    for c in celebrities:
+        counts[c["firstInitial"]] += 1
+        counts[c["lastInitial"]] += 1
+    letters = [l for l in string.ascii_uppercase if l != "X"]
+    median = sorted(counts[l] for l in letters)[len(letters) // 2]
+    return [l for l in letters if counts[l] < median * 0.3]
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +587,14 @@ def print_report(celebrities: list[dict], stats: dict, file_size: int):
     print(f"  Skipped (mononymous): {stats['skipped_mono']}")
     print(f"  Skipped (non-A-Z initial): {stats['skipped_initial']}")
     print(f"  Skipped (duplicate): {stats['skipped_dup']}")
+    print(f"  Skipped (no English Wikipedia views): {stats['skipped_no_views']}")
+
+    if celebrities:
+        views = [c["views"] for c in celebrities]
+        print(f"\n--- Daily English Wikipedia Views ---")
+        print(f"  Most viewed: {celebrities[0]['name']} ({views[0]:,}/day)")
+        print(f"  Median: {sorted(views)[len(views) // 2]:,}/day")
+        print(f"  Cutoff (least viewed kept): {celebrities[-1]['name']} ({views[-1]:,}/day)")
 
     # Occupation breakdown
     occ_counts = defaultdict(int)
@@ -407,6 +628,7 @@ def print_report(celebrities: list[dict], stats: dict, file_size: int):
         print(f"  Missing: {', '.join(zero_pairs[:30])}{'...' if len(zero_pairs) > 30 else ''}")
     print(f"  Best first initials: {', '.join(f'{l}({first_totals[l]})' for l in sorted(first_totals, key=lambda x: -first_totals[x])[:5])}")
     print(f"  Weakest first initials: {', '.join(f'{l}({first_totals[l]})' for l in sorted(first_totals, key=lambda x: first_totals[x])[:5])}")
+    print(f"  Hard letters (rarer on boards, never cross each other): {', '.join(hard_letters(celebrities))}")
 
     # Spot check: find 10 recognizable names across categories
     spot_check_names = [
@@ -433,7 +655,12 @@ def print_report(celebrities: list[dict], stats: dict, file_size: int):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main():
+def main(argv=None, session=None):
+    parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    parser.add_argument("--output", default=OUTPUT_PATH)
+    parser.add_argument("--max-entries", type=int, default=MAX_ENTRIES)
+    args = parser.parse_args(argv)
+
     print("=" * 70)
     print("NameDrop Celebrity Database Builder")
     print(f"Started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -445,17 +672,19 @@ def main():
     # Source 2: Pantheon
     pantheon_entries = load_pantheon()
 
-    # Merge and deduplicate
-    print("\nMerging and deduplicating...")
-    celebrities, stats = merge_and_deduplicate(espn_athletes, pantheon_entries)
+    # Rank everyone by English Wikipedia page views
+    print("\nPreparing candidates...")
+    candidates, stats = prepare_candidates(espn_athletes, pantheon_entries)
+    add_page_views(candidates, session or requests.Session())
+    celebrities = rank_and_deduplicate(candidates, args.max_entries, stats)
 
     # Write output
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as f:
         json.dump(celebrities, f, ensure_ascii=False, separators=(",", ":"))
 
-    file_size = os.path.getsize(OUTPUT_PATH)
-    print(f"\nWrote {len(celebrities)} entries to {OUTPUT_PATH}")
+    file_size = os.path.getsize(args.output)
+    print(f"\nWrote {len(celebrities)} entries to {args.output}")
 
     # Report
     print_report(celebrities, stats, file_size)

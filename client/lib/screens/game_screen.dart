@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
+import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
 import '../services/game_persistence_service.dart';
 import '../services/stats_service.dart';
@@ -35,12 +38,23 @@ class _GameScreenState extends State<GameScreen> {
   final Set<String> _usedNames = {};
   Future<void>? _revealDismissTimer;
 
+  // Answers accepted without a Wikipedia link (offline answers, skip
+  // reveals) get one looked up in the background, retrying while offline.
+  static const _linkRetryMin = Duration(seconds: 15);
+  static const _linkRetryMax = Duration(minutes: 2);
+  Duration _linkRetryDelay = _linkRetryMin;
+  Timer? _linkRetryTimer;
+  bool _linking = false;
+  bool _relink = false;
+  final Set<String> _unlinkable = {};
+
   @override
   void initState() {
     super.initState();
     _state = widget.gameState;
     _rebuildUsedNames();
     _saveState();
+    _linkAnswers();
   }
 
   void _rebuildUsedNames() {
@@ -57,11 +71,68 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _saveState() {
+    // A finished game is cleared from storage; don't bring it back.
+    if (_state.phase == GamePhase.complete) return;
     widget.persistence.save(_state);
+  }
+
+  Iterable<CellSlot> get _slots sync* {
+    for (final row in _state.board) {
+      for (final cell in row) {
+        yield cell.slotA;
+        yield cell.slotB;
+      }
+    }
+  }
+
+  /// Fill in Wikipedia links for answers that don't have one yet. If
+  /// Wikipedia can't be reached, try again later with backoff.
+  Future<void> _linkAnswers() async {
+    if (_linking) {
+      _relink = true;
+      return;
+    }
+    _linking = true;
+    _linkRetryTimer?.cancel();
+    var offline = false;
+    do {
+      _relink = false;
+      for (final slot in _slots) {
+        final answer = slot.answer;
+        if (answer == null ||
+            answer.wikiUrl != null ||
+            _unlinkable.contains(answer.name)) {
+          continue;
+        }
+        final lookup = await widget.service.findWikiLink(answer);
+        if (!mounted || _state.phase == GamePhase.complete) return;
+        if (!lookup.conclusive) {
+          offline = true;
+          break;
+        }
+        final url = lookup.person?.celebrity.wikiUrl;
+        if (url == null) {
+          _unlinkable.add(answer.name);
+        } else if (identical(slot.answer, answer)) {
+          setState(() => slot.answer = answer.withWikiUrl(url));
+          _saveState();
+        }
+      }
+    } while (_relink && !offline);
+    _linking = false;
+
+    if (offline) {
+      _linkRetryTimer = Timer(_linkRetryDelay, _linkAnswers);
+      final next = _linkRetryDelay * 2;
+      _linkRetryDelay = next > _linkRetryMax ? _linkRetryMax : next;
+    } else {
+      _linkRetryDelay = _linkRetryMin;
+    }
   }
 
   @override
   void dispose() {
+    _linkRetryTimer?.cancel();
     _revealDismissTimer = null;
     super.dispose();
   }
@@ -155,12 +226,15 @@ class _GameScreenState extends State<GameScreen> {
     if (result == null) return;
 
     switch (result) {
-      case CellInputAnswer(:final celebrity):
+      case CellInputAnswer(:final celebrity, :final corrected):
         setState(() {
           slot.answer = celebrity;
+          slot.wasCorrected = corrected;
+          if (corrected) _state.correctionsUsed++;
           _usedNames.add(celebrity.name.toLowerCase());
         });
         _saveState();
+        _linkAnswers();
 
       case CellInputSkip():
         final revealed = _pickRevealCelebrity(slot);
@@ -174,6 +248,7 @@ class _GameScreenState extends State<GameScreen> {
           _state.skipsUsed++;
         });
         _saveState();
+        _linkAnswers();
     }
 
     if (_state.isComplete) {
@@ -202,9 +277,13 @@ class _GameScreenState extends State<GameScreen> {
         title: Text('Clear ${slot.answer!.name}?',
             style: const TextStyle(color: NameDropTheme.cream)),
         content: Text(
-          slot.answer?.wikiUrl != null
-              ? 'This will remove the answer. You can also view their Wikipedia page.'
-              : 'This will remove the answer from this slot.',
+          [
+            slot.answer?.wikiUrl != null
+                ? 'This will remove the answer. You can also view their Wikipedia page.'
+                : 'This will remove the answer from this slot.',
+            if (slot.wasSkipped) "You won't get the skip back.",
+            if (slot.wasCorrected) 'The autocorrect time penalty still counts.',
+          ].join(' '),
           style: const TextStyle(color: NameDropTheme.brightGold),
         ),
         actions: [
@@ -225,9 +304,9 @@ class _GameScreenState extends State<GameScreen> {
               Navigator.of(ctx).pop();
               setState(() {
                 _usedNames.remove(slot.answer!.name.toLowerCase());
-                if (slot.wasSkipped) _state.skipsUsed--;
                 slot.answer = null;
                 slot.wasSkipped = false;
+                slot.wasCorrected = false;
               });
               _saveState();
             },
@@ -317,14 +396,8 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _performReroll(int index, bool isRow) {
-    // Pick a new letter not already on either axis.
-    final usedLetters = {
-      ..._state.rowLetters,
-      ..._state.columnLetters,
-    };
-    final available = List.generate(26, (i) => String.fromCharCode(65 + i))
-        .where((l) => l != 'X' && !usedLetters.contains(l))
-        .toList()
+    final available = BoardGenerator(widget.service)
+        .rerollOptions(_state, isRow: isRow)
       ..shuffle();
 
     if (available.isEmpty) return;
@@ -357,11 +430,9 @@ class _GameScreenState extends State<GameScreen> {
   void _clearCell(GameCell cell) {
     if (cell.slotA.isFilled) {
       _usedNames.remove(cell.slotA.answer!.name.toLowerCase());
-      if (cell.slotA.wasSkipped) _state.skipsUsed--;
     }
     if (cell.slotB.isFilled) {
       _usedNames.remove(cell.slotB.answer!.name.toLowerCase());
-      if (cell.slotB.wasSkipped) _state.skipsUsed--;
     }
   }
 
@@ -462,13 +533,15 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// The best-known unused person who fits, so a skip reveals someone the
+  /// player will recognize.
   Celebrity? _pickRevealCelebrity(CellSlot slot) {
     final candidates = widget.service
         .getByInitials(slot.requiredFirstInitial, slot.requiredLastInitial)
         .where((c) => !_usedNames.contains(c.name.toLowerCase()))
         .toList();
     if (candidates.isEmpty) return null;
-    candidates.shuffle();
+    candidates.sort(Celebrity.byFame);
     return candidates.first;
   }
 

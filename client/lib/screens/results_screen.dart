@@ -30,7 +30,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       _recorded = true;
       widget.stats.recordGame(
         gridSize: widget.gameState.gridSize,
-        elapsed: widget.gameState.elapsed,
+        elapsed: widget.gameState.totalTime,
         isDaily: widget.gameState.isDaily,
         dailyDateKey: widget.gameState.dailyDateKey,
       );
@@ -40,7 +40,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final gs = widget.gameState;
-    final elapsed = gs.elapsed;
+    final elapsed = gs.totalTime;
     final minutes = elapsed.inMinutes;
     final seconds = elapsed.inSeconds % 60;
     final freeCells = gs.board
@@ -93,6 +93,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               color: NameDropTheme.dimGold, height: 24),
                           _statRow(
                               context, 'Skips Used', '${gs.skipsUsed}'),
+                        ],
+                        if (gs.correctionsUsed > 0) ...[
+                          const Divider(
+                              color: NameDropTheme.dimGold, height: 24),
+                          _statRow(context, 'Autocorrects',
+                              '${gs.correctionsUsed} (+${gs.penalty.inSeconds}s)'),
                         ],
                         if (freeCells > 0) ...[
                           const Divider(
@@ -158,7 +164,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   String _buildShareCard() {
     final gs = widget.gameState;
-    final elapsed = gs.elapsed;
+    final elapsed = gs.totalTime;
     final minutes = elapsed.inMinutes;
     final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
 
@@ -176,6 +182,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
           buf.write('\u2B1C'); // white square
         } else if (cell.slotA.wasSkipped || cell.slotB.wasSkipped) {
           buf.write('\uD83D\uDFE8'); // yellow square
+        } else if (cell.slotA.wasCorrected || cell.slotB.wasCorrected) {
+          buf.write('\uD83D\uDFE6'); // blue square
         } else {
           buf.write('\uD83D\uDFE9'); // green square
         }
@@ -186,6 +194,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     buf.write('\u23F1\uFE0F $minutes:$seconds');
     if (gs.skipsUsed > 0) {
       buf.write(' | \u23ED\uFE0F ${gs.skipsUsed} skip${gs.skipsUsed > 1 ? 's' : ''}');
+    }
+    if (gs.correctionsUsed > 0) {
+      buf.write(' | \u270F\uFE0F ${gs.correctionsUsed} autocorrect${gs.correctionsUsed > 1 ? 's' : ''}');
     }
     buf.writeln();
     buf.write('https://coltonomous.github.io/NameDrop/');

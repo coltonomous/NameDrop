@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
+import '../models/game_state.dart';
 import '../services/celebrity_service.dart';
 import '../theme.dart';
 
@@ -9,7 +10,10 @@ sealed class CellInputResult {}
 
 class CellInputAnswer extends CellInputResult {
   final Celebrity celebrity;
-  CellInputAnswer(this.celebrity);
+
+  /// The player accepted an autocorrect rather than typing the name right.
+  final bool corrected;
+  CellInputAnswer(this.celebrity, {this.corrected = false});
 }
 
 class CellInputSkip extends CellInputResult {}
@@ -37,6 +41,7 @@ class _CellInputDialogState extends State<CellInputDialog>
   final _controller = TextEditingController();
   String? _errorText;
   bool _isValidating = false;
+  ValidationResult? _nearMiss;
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
 
@@ -128,11 +133,17 @@ class _CellInputDialogState extends State<CellInputDialog>
                       ),
               ),
               onChanged: (_) {
-                if (_errorText != null) setState(() => _errorText = null);
+                if (_errorText != null || _nearMiss != null) {
+                  setState(() {
+                    _errorText = null;
+                    _nearMiss = null;
+                  });
+                }
               },
               onSubmitted: (_) => _submit(),
             ),
           ),
+          if (_nearMiss != null) _buildNearMiss(context, _nearMiss!),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -163,11 +174,48 @@ class _CellInputDialogState extends State<CellInputDialog>
     );
   }
 
+  Widget _buildNearMiss(BuildContext context, ValidationResult nearMiss) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.spellcheck,
+              size: 18, color: NameDropTheme.brightGold),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              nearMiss.hint!,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: NameDropTheme.brightGold),
+            ),
+          ),
+          TextButton(
+            onPressed: _isValidating ? null : _acceptAutocorrect,
+            child: Text(
+                'AUTOCORRECT +${GameState.correctionPenalty.inSeconds}s'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Take the suggested name sight unseen. Costs time, so it's cheaper to
+  /// fix the spelling yourself if you can.
+  void _acceptAutocorrect() {
+    Navigator.of(context)
+        .pop(CellInputAnswer(_nearMiss!.suggestion!, corrected: true));
+  }
+
   Future<void> _submit() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isValidating) return;
 
-    setState(() => _isValidating = true);
+    setState(() {
+      _isValidating = true;
+      _nearMiss = null;
+    });
 
     final result = await widget.service.validate(
       text,
@@ -177,16 +225,24 @@ class _CellInputDialogState extends State<CellInputDialog>
 
     if (!mounted) return;
 
+    final person = result.celebrity ?? result.suggestion;
+    if (person != null && widget.usedNames.contains(person.name.toLowerCase())) {
+      setState(() {
+        _isValidating = false;
+        _errorText = '${person.name} has already been used';
+      });
+      _shakeController.forward(from: 0);
+      return;
+    }
+
     if (result.isSuccess) {
-      if (widget.usedNames.contains(result.celebrity!.name.toLowerCase())) {
-        setState(() {
-          _isValidating = false;
-          _errorText = '${result.celebrity!.name} has already been used';
-        });
-        _shakeController.forward(from: 0);
-        return;
-      }
       Navigator.of(context).pop(CellInputAnswer(result.celebrity!));
+    } else if (result.isNearMiss) {
+      setState(() {
+        _isValidating = false;
+        _nearMiss = result;
+      });
+      _shakeController.forward(from: 0);
     } else {
       setState(() {
         _isValidating = false;

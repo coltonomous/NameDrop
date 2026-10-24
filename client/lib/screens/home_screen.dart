@@ -306,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startDailyGame() {
     final generator = BoardGenerator(widget.service);
-    final gameState = generator.generate(4, seed: DailyService.todaySeed);
+    final gameState = generator.generateDaily(DailyService.todayPuzzleNumber);
     gameState.isDaily = true;
     gameState.puzzleNumber = DailyService.todayPuzzleNumber;
     gameState.dailyDateKey = DailyService.todayDateKey;

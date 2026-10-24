@@ -10,6 +10,8 @@ A celebrity initials word puzzle game built with Flutter. Fill a grid by naming 
 - Name a celebrity whose first and last initials match the letters for that cell (e.g., **B**rad **P**itt for a B-row, P-column)
 - Fill both slots in every cell to complete the board
 - Use **skips** (2 per game) to bypass tough cells or **reroll** a letter (1 per game, practice mode only)
+- Close on the spelling? You'll get a hint about which name is off. Fix it yourself, or tap **Autocorrect** to take the suggested name for a +10s time penalty
+- Answers are checked against Wikipedia, so nicknames and other names an article goes by count too (e.g., **K**ate **M**iddleton)
 
 ### Game Modes
 
@@ -83,9 +85,12 @@ NameDrop/
 
 ## Celebrity Database
 
-The celebrity database is built from ESPN active athletes and Pantheon historical figures using the Python script in `scripts/`. To rebuild:
+The celebrity database is built from ESPN active athletes and Pantheon notable people using the Python script in `scripts/`. Everyone is ranked by English Wikipedia page views (daily average over the last 60 days) and the 5,000 best known are kept. The list is used for skip reveals, offline answers and board generation; online, anyone with a Wikipedia article counts. To rebuild:
 
 ```bash
 pip install -r scripts/requirements.txt
 python scripts/build_celebrity_db.py
+python -m unittest discover scripts   # builder tests
 ```
+
+The Pantheon dataset downloads automatically. ESPN rosters and page views are cached in `scripts/` for a week, so re-runs are quick. The build report lists empty initial pairs and which letters the board generator will treat as hard.

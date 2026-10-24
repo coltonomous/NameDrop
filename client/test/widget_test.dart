@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:namedrop/models/celebrity.dart';
 import 'package:namedrop/models/game_cell.dart';
+import 'package:namedrop/models/game_state.dart';
 
 void main() {
   test('Celebrity parses from JSON', () {
@@ -16,6 +17,42 @@ void main() {
     final celebrity = Celebrity.fromJson(json);
     expect(celebrity.name, 'James Joyce');
     expect(celebrity.pairKey, 'JJ');
+  });
+
+  test('Celebrity reads and writes page views, defaulting to 0', () {
+    final json = {
+      'name': 'Tom Hanks',
+      'firstInitial': 'T',
+      'lastInitial': 'H',
+      'occupation': 'Actor',
+      'hpi': 80,
+    };
+    expect(Celebrity.fromJson(json).views, 0);
+    final withViews = Celebrity.fromJson({...json, 'views': 12000});
+    expect(Celebrity.fromJson(withViews.toJson()).views, 12000);
+  });
+
+  test('Celebrity.byFame puts page views first, then Pantheon score', () {
+    Celebrity person(String name, {int views = 0, double hpi = 0}) => Celebrity(
+          name: name,
+          firstInitial: 'A',
+          lastInitial: 'B',
+          occupation: '',
+          hpi: hpi,
+          views: views,
+        );
+    final ranked = [
+      person('roster athlete'),
+      person('old legend', hpi: 90),
+      person('household name', views: 5000, hpi: 60),
+      person('minor celebrity', views: 300, hpi: 70),
+    ]..sort(Celebrity.byFame);
+    expect(ranked.map((c) => c.name), [
+      'household name',
+      'minor celebrity',
+      'old legend',
+      'roster athlete',
+    ]);
   });
 
   test('GameCell status transitions', () {
@@ -58,5 +95,53 @@ void main() {
     );
     expect(cell.status, CellStatus.free);
     expect(cell.nextUnfilledSlot, isNull);
+  });
+
+  group('autocorrect penalty', () {
+    GameState makeState() => GameState(
+          gridSize: 1,
+          rowLetters: ['J'],
+          columnLetters: ['L'],
+          board: [
+            [
+              GameCell(
+                row: 0,
+                col: 0,
+                slotA: CellSlot(
+                    requiredFirstInitial: 'J', requiredLastInitial: 'L'),
+                slotB: CellSlot(
+                    requiredFirstInitial: 'L', requiredLastInitial: 'J'),
+              ),
+            ],
+          ],
+        );
+
+    test('adds time per autocorrect to the total', () {
+      final state = makeState()
+        ..finalElapsed = const Duration(minutes: 2)
+        ..correctionsUsed = 2;
+      expect(state.penalty, const Duration(seconds: 20));
+      expect(state.totalTime, const Duration(minutes: 2, seconds: 20));
+    });
+
+    test('survives a save and restore', () {
+      final state = makeState()..correctionsUsed = 1;
+      state.board[0][0].slotA.wasCorrected = true;
+
+      final restored = GameState.fromJson(state.toJson());
+      expect(restored.correctionsUsed, 1);
+      expect(restored.board[0][0].slotA.wasCorrected, isTrue);
+      expect(restored.board[0][0].slotB.wasCorrected, isFalse);
+    });
+
+    test('loads games saved before autocorrect existed', () {
+      final json = makeState().toJson()..remove('correctionsUsed');
+      final cell = (json['board'] as List)[0][0] as Map<String, dynamic>;
+      (cell['slotA'] as Map<String, dynamic>).remove('wasCorrected');
+
+      final restored = GameState.fromJson(json);
+      expect(restored.correctionsUsed, 0);
+      expect(restored.board[0][0].slotA.wasCorrected, isFalse);
+    });
   });
 }

@@ -5,6 +5,9 @@ class Celebrity {
   final String occupation;
   final int? birthYear;
   final double hpi;
+
+  /// Average daily English Wikipedia page views (0 if unknown).
+  final int views;
   final String? wikiUrl;
 
   const Celebrity({
@@ -14,6 +17,7 @@ class Celebrity {
     required this.occupation,
     this.birthYear,
     required this.hpi,
+    this.views = 0,
     this.wikiUrl,
   });
 
@@ -24,6 +28,7 @@ class Celebrity {
         occupation: json['occupation'] as String,
         birthYear: json['birthYear'] as int?,
         hpi: (json['hpi'] as num).toDouble(),
+        views: (json['views'] as num?)?.toInt() ?? 0,
         wikiUrl: json['wikiUrl'] as String?,
       );
 
@@ -34,10 +39,32 @@ class Celebrity {
         'occupation': occupation,
         'birthYear': birthYear,
         'hpi': hpi,
+        'views': views,
         'wikiUrl': wikiUrl,
       };
 
   String get pairKey => '$firstInitial$lastInitial';
+
+  /// Has some measure of fame. Active-roster athletes from ESPN have neither
+  /// score until the list is rebuilt with page views.
+  bool get isWellKnown => views > 0 || hpi > 0;
+
+  /// Most famous first: English Wikipedia views, then Pantheon's score.
+  static int byFame(Celebrity a, Celebrity b) {
+    final byViews = b.views.compareTo(a.views);
+    return byViews != 0 ? byViews : b.hpi.compareTo(a.hpi);
+  }
+
+  Celebrity withWikiUrl(String url) => Celebrity(
+        name: name,
+        firstInitial: firstInitial,
+        lastInitial: lastInitial,
+        occupation: occupation,
+        birthYear: birthYear,
+        hpi: hpi,
+        views: views,
+        wikiUrl: url,
+      );
 
   @override
   String toString() => '$name ($pairKey)';

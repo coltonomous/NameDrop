@@ -6,3 +6,4 @@ client/.idea
 package-lock.json
 scripts/*.bz2
 scripts/*_cache.json
+__pycache__/

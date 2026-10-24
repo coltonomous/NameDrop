@@ -45,6 +45,8 @@ class CelebrityService {
 
   bool get isLoaded => _celebrities.isNotEmpty;
 
+  List<Celebrity> get celebrities => List.unmodifiable(_celebrities);
+
   Future<void> init() async {
     if (isLoaded) return;
 
@@ -182,7 +184,7 @@ class CelebrityService {
           : (best.match.isMatch ? -1 : best.match.distance);
       if (bestRank == null ||
           rank < bestRank ||
-          (rank == bestRank && c.hpi > best!.celebrity.hpi)) {
+          (rank == bestRank && Celebrity.byFame(c, best!.celebrity) < 0)) {
         best = PersonMatch(c, m);
       }
     }

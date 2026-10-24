@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/celebrity.dart';
 import '../models/game_cell.dart';
 import '../models/game_state.dart';
+import '../services/board_generator.dart';
 import '../services/celebrity_service.dart';
 import '../services/game_persistence_service.dart';
 import '../services/stats_service.dart';
@@ -395,14 +396,8 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _performReroll(int index, bool isRow) {
-    // Pick a new letter not already on either axis.
-    final usedLetters = {
-      ..._state.rowLetters,
-      ..._state.columnLetters,
-    };
-    final available = List.generate(26, (i) => String.fromCharCode(65 + i))
-        .where((l) => l != 'X' && !usedLetters.contains(l))
-        .toList()
+    final available = BoardGenerator(widget.service)
+        .rerollOptions(_state, isRow: isRow)
       ..shuffle();
 
     if (available.isEmpty) return;
@@ -538,13 +533,15 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// The best-known unused person who fits, so a skip reveals someone the
+  /// player will recognize.
   Celebrity? _pickRevealCelebrity(CellSlot slot) {
     final candidates = widget.service
         .getByInitials(slot.requiredFirstInitial, slot.requiredLastInitial)
         .where((c) => !_usedNames.contains(c.name.toLowerCase()))
         .toList();
     if (candidates.isEmpty) return null;
-    candidates.shuffle();
+    candidates.sort(Celebrity.byFame);
     return candidates.first;
   }
 

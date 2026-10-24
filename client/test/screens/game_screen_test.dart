@@ -13,6 +13,7 @@ import '../services/fake_wikimedia.dart';
 
 void main() {
   late FakeWikimedia wiki;
+  late CelebrityService service;
   late GamePersistenceService persistence;
   late StatsService stats;
   late CellSlot answered;
@@ -23,6 +24,7 @@ void main() {
     persistence = GamePersistenceService();
     stats = StatsService();
     wiki = FakeWikimedia()..offline = true;
+    service = CelebrityService(client: wiki.client);
 
     // One answered slot, accepted while offline so it has no link yet.
     answered = CellSlot(requiredFirstInitial: 'T', requiredLastInitial: 'H')
@@ -57,7 +59,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: GameScreen(
         gameState: state,
-        service: CelebrityService(client: wiki.client),
+        service: service,
         stats: stats,
         persistence: persistence,
       ),
@@ -81,6 +83,24 @@ void main() {
     expect(answered.isFilled, isFalse);
     expect(state.skipsUsed, 1);
     expect(state.skipsRemaining, 1);
+  });
+
+  testWidgets('a skip reveals the best-known person who fits', (tester) async {
+    await tester.runAsync(service.init);
+    answered.answer = null;
+    await showGame(tester);
+
+    await tester.tap(find.text('T.H.'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Skip (2 left)'));
+    await tester.pumpAndSettle(); // Reveal dialog shows...
+    await tester.pump(const Duration(seconds: 2)); // ...and dismisses itself.
+    await tester.pumpAndSettle();
+
+    final fits = service.getByInitials('T', 'H').toList()
+      ..sort(Celebrity.byFame);
+    expect(answered.answer?.name, fits.first.name);
+    expect(answered.wasSkipped, isTrue);
   });
 
   testWidgets('links offline answers once Wikipedia is back', (tester) async {

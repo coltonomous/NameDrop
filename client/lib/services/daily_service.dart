@@ -7,8 +7,6 @@ class DailyService {
     return today.difference(_epoch).inDays + 1;
   }
 
-  static int get todaySeed => todayPuzzleNumber;
-
   static String get todayDateKey {
     final now = DateTime.now().toUtc();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';

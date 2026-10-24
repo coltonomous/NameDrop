@@ -19,6 +19,42 @@ void main() {
     expect(celebrity.pairKey, 'JJ');
   });
 
+  test('Celebrity reads and writes page views, defaulting to 0', () {
+    final json = {
+      'name': 'Tom Hanks',
+      'firstInitial': 'T',
+      'lastInitial': 'H',
+      'occupation': 'Actor',
+      'hpi': 80,
+    };
+    expect(Celebrity.fromJson(json).views, 0);
+    final withViews = Celebrity.fromJson({...json, 'views': 12000});
+    expect(Celebrity.fromJson(withViews.toJson()).views, 12000);
+  });
+
+  test('Celebrity.byFame puts page views first, then Pantheon score', () {
+    Celebrity person(String name, {int views = 0, double hpi = 0}) => Celebrity(
+          name: name,
+          firstInitial: 'A',
+          lastInitial: 'B',
+          occupation: '',
+          hpi: hpi,
+          views: views,
+        );
+    final ranked = [
+      person('roster athlete'),
+      person('old legend', hpi: 90),
+      person('household name', views: 5000, hpi: 60),
+      person('minor celebrity', views: 300, hpi: 70),
+    ]..sort(Celebrity.byFame);
+    expect(ranked.map((c) => c.name), [
+      'household name',
+      'minor celebrity',
+      'old legend',
+      'roster athlete',
+    ]);
+  });
+
   test('GameCell status transitions', () {
     final cell = GameCell(
       row: 0,

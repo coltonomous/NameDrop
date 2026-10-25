@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/game_state.dart';
-import '../services/stats_service.dart';
 import '../theme.dart';
 
 class ResultsScreen extends StatefulWidget {
   final GameState gameState;
-  final StatsService stats;
 
   const ResultsScreen({
     super.key,
     required this.gameState,
-    required this.stats,
   });
 
   @override
@@ -21,21 +18,6 @@ class ResultsScreen extends StatefulWidget {
 
 class _ResultsScreenState extends State<ResultsScreen> {
   bool _copied = false;
-  bool _recorded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (!_recorded) {
-      _recorded = true;
-      widget.stats.recordGame(
-        gridSize: widget.gameState.gridSize,
-        elapsed: widget.gameState.totalTime,
-        isDaily: widget.gameState.isDaily,
-        dailyDateKey: widget.gameState.dailyDateKey,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,15 +111,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  // Wraps onto two lines on narrow phones.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
                       FilledButton.icon(
                         onPressed: _share,
                         icon: Icon(_copied ? Icons.check : Icons.share),
                         label: Text(_copied ? 'COPIED!' : 'SHARE'),
                       ),
-                      const SizedBox(width: 12),
                       OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(context)

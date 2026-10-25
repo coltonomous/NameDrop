@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/celebrity.dart';
@@ -11,6 +12,7 @@ import '../services/celebrity_service.dart';
 import '../services/game_persistence_service.dart';
 import '../services/stats_service.dart';
 import '../theme.dart';
+import '../widgets/board_complete_overlay.dart';
 import '../widgets/cell_input_dialog.dart';
 import '../widgets/game_board.dart';
 import 'results_screen.dart';
@@ -166,56 +168,68 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: NameDropTheme.royalBlue,
-            valueColor: const AlwaysStoppedAnimation(NameDropTheme.gold),
-            minHeight: 3,
-          ),
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 700),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: GameBoard(
-                          gameState: _state,
-                          onSlotTap: _onSlotTap,
-                          onSlotClear: _onSlotClear,
-                        ),
+          _buildBoard(showReroll, progress),
+          if (_state.phase == GamePhase.complete)
+            Positioned.fill(
+              child: BoardCompleteOverlay(onContinue: _showResults),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoard(bool showReroll, double progress) {
+    return Column(
+      children: [
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: NameDropTheme.royalBlue,
+          valueColor: const AlwaysStoppedAnimation(NameDropTheme.gold),
+          minHeight: 3,
+        ),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 700),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: GameBoard(
+                        gameState: _state,
+                        onSlotTap: _onSlotTap,
+                        onSlotClear: _onSlotClear,
                       ),
-                      if (showReroll)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12, bottom: 4),
-                          child: OutlinedButton.icon(
-                            onPressed: _showRerollDialog,
-                            icon: const Icon(Icons.casino, size: 16),
-                            label: Text('REROLL A LETTER (${_state.rerollsRemaining})'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: NameDropTheme.brightGold,
-                              side: const BorderSide(
-                                  color: NameDropTheme.dimGold),
-                              textStyle: const TextStyle(
-                                letterSpacing: 1.5,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                    ),
+                    if (showReroll)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12, bottom: 4),
+                        child: OutlinedButton.icon(
+                          onPressed: _showRerollDialog,
+                          icon: const Icon(Icons.casino, size: 16),
+                          label: Text('REROLL A LETTER (${_state.rerollsRemaining})'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: NameDropTheme.brightGold,
+                            side: const BorderSide(
+                                color: NameDropTheme.dimGold),
+                            textStyle: const TextStyle(
+                              letterSpacing: 1.5,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -251,20 +265,31 @@ class _GameScreenState extends State<GameScreen> {
         _linkAnswers();
     }
 
-    if (_state.isComplete) {
+    if (_state.isComplete && mounted) _finishGame();
+  }
+
+  /// Stop the clock, record the result and celebrate. The result is recorded
+  /// now rather than on the results screen so closing the app during the
+  /// celebration doesn't lose it (the saved game is already cleared).
+  void _finishGame() {
+    setState(() {
       _state.finalElapsed = DateTime.now().difference(_state.startTime);
       _state.phase = GamePhase.complete;
-      widget.persistence.clear();
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ResultsScreen(
-            gameState: _state,
-            stats: widget.stats,
-          ),
-        ),
-      );
-    }
+    });
+    widget.persistence.clear();
+    widget.stats.recordGame(
+      gridSize: _state.gridSize,
+      elapsed: _state.totalTime,
+      isDaily: _state.isDaily,
+      dailyDateKey: _state.dailyDateKey,
+    );
+    HapticFeedback.heavyImpact();
+  }
+
+  void _showResults() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => ResultsScreen(gameState: _state)),
+    );
   }
 
   void _onSlotClear(int row, int col, CellSlot slot) {

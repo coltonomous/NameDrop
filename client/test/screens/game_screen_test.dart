@@ -103,6 +103,34 @@ void main() {
     expect(answered.wasSkipped, isTrue);
   });
 
+  testWidgets('finishing the board celebrates, then shows results',
+      (tester) async {
+    wiki
+      ..offline = false
+      ..addPerson('Henry Thomas', 'American actor (born 1971)', 'Q1');
+    state.isDaily = true;
+    state.dailyDateKey = '2026-10-25';
+    await showGame(tester);
+
+    await tester.tap(find.text('H.T.'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Henry Thomas');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('BOARD\nCOMPLETE!'), findsOneWidget);
+    // Recorded before Continue, so leaving now doesn't lose the result.
+    expect(stats.totalGames, 1);
+    expect(stats.isDailyCompleted('2026-10-25'), isTrue);
+    expect(persistence.hasSavedGame, isFalse);
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('CONTINUE'));
+    await tester.pumpAndSettle();
+    expect(find.text('PLAY AGAIN'), findsOneWidget);
+    expect(stats.totalGames, 1);
+  });
+
   testWidgets('links offline answers once Wikipedia is back', (tester) async {
     await showGame(tester);
     expect(answered.answer!.wikiUrl, isNull);

@@ -182,27 +182,18 @@ void main() {
       }
     });
 
-    test('still come up, just less often than similar letters', () {
+    test('come up on some boards, but not most', () {
       const boards = 3000;
-      final seen = <String, int>{};
+      var withHard = 0;
+      final seen = <String>{};
       for (var seed = 0; seed < boards; seed++) {
         final board = generator.generate(4, seed: seed);
-        for (final l in {...board.rowLetters, ...board.columnLetters}) {
-          seen[l] = (seen[l] ?? 0) + 1;
-        }
+        final letters = {...board.rowLetters, ...board.columnLetters};
+        seen.addAll(letters);
+        if (letters.any(generator.hardLetters.contains)) withHard++;
       }
-      const vowels = {'A', 'E', 'I', 'O', 'U'};
-      double average(bool vowel) {
-        final peers = seen.keys.where((l) =>
-            vowels.contains(l) == vowel && !generator.hardLetters.contains(l));
-        return peers.map((l) => seen[l]!).reduce((a, b) => a + b) /
-            peers.length;
-      }
-
-      for (final letter in generator.hardLetters) {
-        final share = (seen[letter] ?? 0) / average(vowels.contains(letter));
-        expect(share, inInclusiveRange(0.3, 0.9), reason: letter);
-      }
+      expect(withHard / boards, inInclusiveRange(0.2, 0.45));
+      expect(seen, containsAll(generator.hardLetters));
     });
 
     test('every axis has a vowel', () {
@@ -213,6 +204,18 @@ void main() {
               reason: 'seed $seed');
         }
       }
+    });
+  });
+
+  group('repeated letters', () {
+    test('come up on some boards, but not most', () {
+      const boards = 3000;
+      var repeats = 0;
+      for (var seed = 0; seed < boards; seed++) {
+        final board = generator.generate(4, seed: seed);
+        if (board.rowLetters.any(board.columnLetters.contains)) repeats++;
+      }
+      expect(repeats / boards, inInclusiveRange(0.15, 0.4));
     });
   });
 

@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'fireworks.dart';
 
-/// Shown over the finished board: fireworks, a headline, and a Continue
-/// button through to the results.
+/// Shown over the finished board: fireworks, a headline, a Continue button
+/// through to the results, and an option to look over the board first.
 class BoardCompleteOverlay extends StatefulWidget {
   final VoidCallback onContinue;
+  final VoidCallback onViewBoard;
 
-  const BoardCompleteOverlay({super.key, required this.onContinue});
+  const BoardCompleteOverlay({
+    super.key,
+    required this.onContinue,
+    required this.onViewBoard,
+  });
 
   @override
   State<BoardCompleteOverlay> createState() => _BoardCompleteOverlayState();
@@ -80,9 +85,22 @@ class _BoardCompleteOverlayState extends State<BoardCompleteOverlay>
                     child: child,
                   ),
                 ),
-                child: FilledButton(
-                  onPressed: widget.onContinue,
-                  child: const Text('CONTINUE'),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton(
+                      onPressed: widget.onContinue,
+                      child: const Text('CONTINUE'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: widget.onViewBoard,
+                      style: TextButton.styleFrom(
+                        foregroundColor: NameDropTheme.brightGold,
+                      ),
+                      child: const Text('VIEW BOARD'),
+                    ),
+                  ],
                 ),
               ),
             ],

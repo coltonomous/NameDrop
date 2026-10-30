@@ -23,6 +23,14 @@ class BoardGenerator {
 
   static const _vowels = {'A', 'E', 'I', 'O', 'U'};
   static const _secondAxisCandidates = 10;
+
+  // Odds of drawing a hard letter, and of the second axis repeating a letter
+  // from the first (a cell like O.O.), relative to 1 for any other letter.
+  // Each roughly halves how often boards have them: about 1 in 3 4x4 boards
+  // has a hard letter, and a bit under 1 in 3 has a repeated letter.
+  static const _hardLetterWeight = 0.35;
+  static const _repeatWeight = 0.3;
+
   static final _letters = [
     for (var i = 0; i < 26; i++)
       if (i != 23) String.fromCharCode(65 + i), // X is never used.
@@ -117,26 +125,29 @@ class BoardGenerator {
   static bool _hasVowel(List<String> letters) =>
       letters.any((l) => _vowels.contains(l));
 
-  /// Select row and column letters. Letters can repeat across axes
-  /// (alliterative cells like B.B.) except hard letters: if one axis has a
-  /// hard letter, the other gets none. Each axis has at least one vowel.
+  /// Select row and column letters. Each axis has at least one vowel.
+  /// Hard letters and repeats across axes (alliterative cells like B.B.)
+  /// are drawn at reduced odds, and if one axis has a hard letter the other
+  /// gets none.
   ///
-  /// The first axis is drawn uniformly. For the second, the best of a few
-  /// draws (fewest free cells) is kept. Hard letters on the first axis are
-  /// never penalized for that, so they still turn up regularly, just less
-  /// than other letters. Which axis becomes the rows is a coin flip.
+  /// For the second axis, the best of a few draws (fewest free cells) is
+  /// kept. Which axis becomes the rows is a coin flip.
   (List<String>, List<String>) _selectLetters(int gridSize, Random random) {
     final hasPair = _service.hasCelebrities;
     final pool = _letterPool(hasPair);
-    final first = _pickAxis(pool, gridSize, random);
+    double weight(String l) =>
+        hardLetters.contains(l) ? _hardLetterWeight : 1;
+    final first = _pickAxis(pool, gridSize, random, weight);
+    double secondWeight(String l) =>
+        weight(l) * (first.contains(l) ? _repeatWeight : 1);
     final secondPool = first.any(hardLetters.contains)
         ? pool.where((l) => !hardLetters.contains(l)).toList()
         : pool;
 
-    var second = _pickAxis(secondPool, gridSize, random);
+    var second = _pickAxis(secondPool, gridSize, random, secondWeight);
     var fewestFree = _freeCells(first, second, hasPair);
     for (var i = 1; i < _secondAxisCandidates && fewestFree > 0; i++) {
-      final candidate = _pickAxis(secondPool, gridSize, random);
+      final candidate = _pickAxis(secondPool, gridSize, random, secondWeight);
       final free = _freeCells(first, candidate, hasPair);
       if (free < fewestFree) {
         second = candidate;
@@ -148,12 +159,32 @@ class BoardGenerator {
   }
 
   /// Draw [n] distinct letters, redrawing until there's a vowel.
-  List<String> _pickAxis(List<String> pool, int n, Random random) {
-    var letters = _pickUniform(pool, n, random);
+  List<String> _pickAxis(List<String> pool, int n, Random random,
+      double Function(String) weightOf) {
+    var letters = _pickWeighted(pool, n, random, weightOf);
     for (var i = 0; i < 100 && !_hasVowel(letters); i++) {
-      letters = _pickUniform(pool, n, random);
+      letters = _pickWeighted(pool, n, random, weightOf);
     }
     return letters;
+  }
+
+  /// Draw [n] distinct letters, each with odds proportional to its weight.
+  static List<String> _pickWeighted(List<String> pool, int n, Random random,
+      double Function(String) weightOf) {
+    final remaining = List<String>.from(pool);
+    final picked = <String>[];
+    while (picked.length < n && remaining.isNotEmpty) {
+      final total = remaining.fold(0.0, (sum, l) => sum + weightOf(l));
+      var roll = random.nextDouble() * total;
+      var i = 0;
+      while (i < remaining.length - 1) {
+        roll -= weightOf(remaining[i]);
+        if (roll < 0) break;
+        i++;
+      }
+      picked.add(remaining.removeAt(i));
+    }
+    return picked;
   }
 
   static int _freeCells(

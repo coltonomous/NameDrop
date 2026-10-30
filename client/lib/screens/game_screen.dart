@@ -38,7 +38,6 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late GameState _state;
   final Set<String> _usedNames = {};
-  Future<void>? _revealDismissTimer;
 
   // Answers accepted without a Wikipedia link (offline answers, skip
   // reveals) get one looked up in the background, retrying while offline.
@@ -138,7 +137,6 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _linkRetryTimer?.cancel();
-    _revealDismissTimer = null;
     super.dispose();
   }
 
@@ -561,7 +559,7 @@ class _GameScreenState extends State<GameScreen> {
         );
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        _revealDismissTimer = Future.delayed(const Duration(milliseconds: 1800), () {
+        Future.delayed(const Duration(milliseconds: 1800), () {
           if (mounted && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }

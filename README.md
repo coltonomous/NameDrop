@@ -53,6 +53,8 @@ cd client
 flutter test
 ```
 
+GitHub Actions runs `flutter analyze`, `flutter test` and the DB builder tests on every branch push (so results show on pull requests) and before each deploy.
+
 ### Build for Web
 
 ```bash

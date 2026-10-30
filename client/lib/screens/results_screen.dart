@@ -137,6 +137,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       ),
                     ],
                   ),
+                  // Back to the finished board, which sits underneath.
+                  if (Navigator.of(context).canPop()) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.grid_view),
+                      label: const Text('VIEW BOARD'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: NameDropTheme.brightGold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

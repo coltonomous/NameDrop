@@ -47,6 +47,9 @@ class _GameScreenState extends State<GameScreen> {
   Duration _linkRetryDelay = _linkRetryMin;
   Timer? _linkRetryTimer;
   bool _linking = false;
+
+  /// Looking over the finished board instead of the celebration.
+  bool _reviewing = false;
   bool _relink = false;
   final Set<String> _unlinkable = {};
 
@@ -144,7 +147,8 @@ class _GameScreenState extends State<GameScreen> {
     final completed = _state.completedSlots;
     final total = _state.totalPlayableSlots;
     final progress = total > 0 ? completed / total : 0.0;
-    final showReroll = !_state.isDaily && _state.canReroll;
+    final finished = _state.phase == GamePhase.complete;
+    final showReroll = !finished && !_state.isDaily && _state.canReroll;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -171,9 +175,12 @@ class _GameScreenState extends State<GameScreen> {
       body: Stack(
         children: [
           _buildBoard(showReroll, progress),
-          if (_state.phase == GamePhase.complete)
+          if (finished && !_reviewing)
             Positioned.fill(
-              child: BoardCompleteOverlay(onContinue: _showResults),
+              child: BoardCompleteOverlay(
+                onContinue: _showResults,
+                onViewBoard: () => setState(() => _reviewing = true),
+              ),
             ),
         ],
       ),
@@ -221,6 +228,15 @@ class _GameScreenState extends State<GameScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ),
+                      ),
+                    if (_reviewing)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12, bottom: 4),
+                        child: FilledButton.icon(
+                          onPressed: _showResults,
+                          icon: const Icon(Icons.emoji_events),
+                          label: const Text('SEE RESULTS'),
                         ),
                       ),
                   ],
@@ -286,14 +302,21 @@ class _GameScreenState extends State<GameScreen> {
     HapticFeedback.heavyImpact();
   }
 
+  /// Results open on top of the finished board, so they can come back to
+  /// it (in review, without the celebration) before leaving.
   void _showResults() {
-    Navigator.of(context).pushReplacement(
+    setState(() => _reviewing = true);
+    Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ResultsScreen(gameState: _state)),
     );
   }
 
   void _onSlotClear(int row, int col, CellSlot slot) {
     if (!slot.isFilled) return;
+    if (_state.phase == GamePhase.complete) {
+      _showAnswer(slot);
+      return;
+    }
 
     showDialog(
       context: context,
@@ -338,6 +361,41 @@ class _GameScreenState extends State<GameScreen> {
             style: TextButton.styleFrom(
                 foregroundColor: NameDropTheme.hotCoral),
             child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Who's in a slot on the finished board. Read-only: no clearing.
+  void _showAnswer(CellSlot slot) {
+    final answer = slot.answer!;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NameDropTheme.royalBlue,
+        title: Text(answer.name,
+            style: const TextStyle(color: NameDropTheme.cream)),
+        content: Text(
+          [
+            answer.occupation,
+            if (slot.wasSkipped) 'Revealed by a skip.',
+            if (slot.wasCorrected) 'Autocorrected.',
+          ].join('\n'),
+          style: const TextStyle(color: NameDropTheme.brightGold),
+        ),
+        actions: [
+          if (answer.wikiUrl != null)
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _openWikiUrl(answer.wikiUrl!);
+              },
+              child: const Text('View Wikipedia'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),

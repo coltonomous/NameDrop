@@ -103,20 +103,24 @@ void main() {
     expect(answered.wasSkipped, isTrue);
   });
 
-  testWidgets('finishing the board celebrates, then shows results',
-      (tester) async {
+  /// Fill the one empty slot, finishing the board.
+  Future<void> finishBoard(WidgetTester tester) async {
     wiki
       ..offline = false
       ..addPerson('Henry Thomas', 'American actor (born 1971)', 'Q1');
-    state.isDaily = true;
-    state.dailyDateKey = '2026-10-25';
     await showGame(tester);
-
     await tester.tap(find.text('H.T.'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Henry Thomas');
     await tester.tap(find.byIcon(Icons.send));
     await tester.pump();
+  }
+
+  testWidgets('finishing the board celebrates, then shows results',
+      (tester) async {
+    state.isDaily = true;
+    state.dailyDateKey = '2026-10-25';
+    await finishBoard(tester);
 
     expect(find.text('BOARD\nCOMPLETE!'), findsOneWidget);
     // Recorded before Continue, so leaving now doesn't lose the result.
@@ -128,6 +132,38 @@ void main() {
     await tester.tap(find.text('CONTINUE'));
     await tester.pumpAndSettle();
     expect(find.text('PLAY AGAIN'), findsOneWidget);
+    expect(stats.totalGames, 1);
+  });
+
+  testWidgets('the finished board can be looked over before leaving',
+      (tester) async {
+    await finishBoard(tester);
+    await tester.pumpAndSettle();
+
+    // From the celebration...
+    await tester.tap(find.text('VIEW BOARD'));
+    await tester.pumpAndSettle();
+    expect(find.text('BOARD\nCOMPLETE!'), findsNothing);
+    expect(find.text('Henry Thomas'), findsOneWidget);
+
+    // ...answers can be looked at but not cleared.
+    await tester.tap(find.text('Tom Hanks'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clear'), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(answered.answer?.name, 'Tom Hanks');
+
+    // ...then on to the results, and back to the board from there.
+    await tester.tap(find.text('SEE RESULTS'));
+    await tester.pumpAndSettle();
+    expect(find.text('PLAY AGAIN'), findsOneWidget);
+    await tester.ensureVisible(find.text('VIEW BOARD'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('VIEW BOARD'));
+    await tester.pumpAndSettle();
+    expect(find.text('SEE RESULTS'), findsOneWidget);
+    expect(find.text('BOARD\nCOMPLETE!'), findsNothing);
     expect(stats.totalGames, 1);
   });
 
